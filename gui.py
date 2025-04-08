@@ -47,7 +47,7 @@ class FlightDataApp():
 
         # Create ROS 2 nodes
         self.imu_node = SensorSubscriber(
-            self.app, self.x_label, self.y_label, self.z_label, self.status_label2, self.status_label4, self.vertical_circle, self.battery_low_circle_id, self.horizontal_circle, self.horizontal_circle_id, self.vertical_label, self.horizontal_label)
+            self.app, self.x_label, self.y_label, self.z_label, self.status_label2, self.status_label4, self.vertical_circle, self.battery_low_circle_id, self.horizontal_circle, self.horizontal_circle_id, self.vertical_label, self.horizontal_label, self.height_label)
         # self.camera_node = VideoSubscriber(self.image_label, self.screen_width)
 
         # Use MultiThreadedExecutor for both nodes
@@ -250,6 +250,10 @@ class FlightDataApp():
         self.horizontal_label = ctk.CTkLabel(self.velocity_values_frame, text="Horizontal : 00 m/s", font=(
             "Arial", 20, "bold"), text_color="#11FF00")
         self.horizontal_label.pack(pady=20)
+        
+        self.height_label = ctk.CTkLabel(self.velocity_values_frame, text="Height : 00 cm", font=(
+            "Arial", 20, "bold"), text_color="#ffffff")
+        self.height_label.pack(pady=20)
 
     def create_safe_site_box(self):
         # Safe Site box

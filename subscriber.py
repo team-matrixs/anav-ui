@@ -6,7 +6,7 @@ import time
 
 
 class SensorSubscriber(Node):
-    def __init__(self, app, x_label, y_label, z_label, battery_percentage_label, battery_health_label, battery_low_circle, battery_low_circle_id, horizontal_circle, horizontal_circle_id, vertical_label, horizontal_label):
+    def __init__(self, app, x_label, y_label, z_label, battery_percentage_label, battery_health_label, battery_low_circle, battery_low_circle_id, horizontal_circle, horizontal_circle_id, vertical_label, horizontal_label, height_label):
         super().__init__('sensor_subscriber')
 
         self.subscription = self.create_subscription(
@@ -36,7 +36,7 @@ class SensorSubscriber(Node):
         self.horizontal_circle_id = horizontal_circle_id
         self.vertical_label = vertical_label
         self.horizontal_label = horizontal_label
-
+        self.height_label = height_label
     def listener_callback(self, msg):
         """Callback function to process received sensor data"""
         try:
@@ -68,12 +68,19 @@ class SensorSubscriber(Node):
 
             self.hv = data.get("imu_data", {}).get(
                 "velocity_data", {}).get("horizontal_speed", 0.0)
+            
+            #Extract lidar data
+            self.lidar_data = data.get("lidar_data", {}).get("height_cm", 0.0)
 
             print(data)
 
             self.vertical_label.configure(text=f"Vertical : {self.vv:.2f} m/s")
             self.horizontal_label.configure(
                 text=f"Horizontal : {self.hv:.2f} m/s")
+            
+            self.height_label.configure(
+                text=f"Height : {self.lidar_data:.2f} cm")
+            # Update battery health label
 
             # Update battery UI
             if self.battery_percentage > 50:
