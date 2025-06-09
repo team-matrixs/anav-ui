@@ -1,23 +1,22 @@
-from rclpy.node import Node
+import rospy
 from sensor_msgs.msg import Image as ROSImage
 from cv_bridge import CvBridge
 
 
-class CameraSubscriber(Node):
-    """ROS2 Node for subscribing to camera feed"""
+class CameraSubscriber:
+    """ROS Node for subscribing to camera feed"""
     
     def __init__(self, update_callback):
-        super().__init__('camera_subscriber')
+        # rospy.init_node('camera_subscriber', anonymous=True)
         self.update_callback = update_callback
         self.bridge = CvBridge()
         
         # Subscribe to the camera topic
-        self.subscription = self.create_subscription(
-            ROSImage,
+        self.subscription = rospy.Subscriber(
             '/camera/camera/color/image_raw',  # Change this to your actual camera topic
+            ROSImage,
             self.image_callback,
-            10)
-        self.subscription  # Prevent unused variable warning
+            queue_size=10)
     
     def image_callback(self, msg):
         """Callback for when a new image message is received"""
@@ -28,5 +27,4 @@ class CameraSubscriber(Node):
             # Call the update callback with the new image
             self.update_callback(cv_image)
         except Exception as e:
-            self.get_logger().error(f"Error processing image: {e}")
-
+            rospy.logerr(f"Error processing image: {e}")
