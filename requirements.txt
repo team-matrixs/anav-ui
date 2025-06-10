@@ -114,10 +114,4 @@ tf2-kdl==0.7.10
 tf2-py==0.7.10
 tf2-ros==0.7.10
 topic-tools==1.17.4
-turtlebot3_autorace_camera==1.1.1
-turtlebot3_autorace_core==1.1.1
-turtlebot3_autorace_detect==1.1.1
-turtlebot3_autorace_driving==1.1.1
-turtlebot3_example==1.2.5
-turtlebot3_teleop==1.2.5
 xacro==1.14.20

@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
 import rospy
+from std_msgs.msg import String
 from sensor_msgs.msg import Imu, BatteryState
 from geometry_msgs.msg import TwistStamped, PoseStamped
 from mavros_msgs.msg import Altitude
+from geometry_msgs.msg import Point
 import math
 import time
 
@@ -11,7 +13,7 @@ class SensorSubscriber:
     def __init__(self, app, x_label, y_label, z_label, battery_percentage_label, 
                  battery_health_label, battery_low_circle, battery_low_circle_id, 
                  horizontal_circle, horizontal_circle_id, vertical_label, 
-                 horizontal_label, height_label):
+                 horizontal_label, height_label, safe_label_x, safe_label_y, safe_label_z):
         
         # Store UI components
         self.app = app
@@ -27,6 +29,9 @@ class SensorSubscriber:
         self.vertical_label = vertical_label
         self.horizontal_label = horizontal_label
         self.height_label = height_label
+        self.safe_label_x = safe_label_x
+        self.safe_label_y = safe_label_y
+        self.safe_label_z = safe_label_z
         
         # Initialize data variables
         self.x = 0.0  # Roll
@@ -39,6 +44,9 @@ class SensorSubscriber:
         self.altitude = 0.0  # Altitude in meters
         self.height_above_home = 0.0  # Height above home position
         self.battery_percentage = 100.0
+        self.safe_x = ""
+        self.safe_y = ""
+        self.safe_z = ""
         
         # Connection management
         self.last_message_time = rospy.Time.now()
@@ -69,12 +77,12 @@ class SensorSubscriber:
                 queue_size=10
             )
             
-            self.subscribers['battery'] = rospy.Subscriber(
-                '/mavros/battery',
-                BatteryState,
-                self.battery_callback,
-                queue_size=10
-            )
+            # self.subscribers['battery'] = rospy.Subscriber(
+            #     '/mavros/battery',
+            #     BatteryState,
+            #     self.battery_callback,
+            #     queue_size=10
+            # )
             
             # Velocity subscribers
             self.subscribers['velocity_local'] = rospy.Subscriber(
@@ -99,12 +107,75 @@ class SensorSubscriber:
                 queue_size=10
             )
             
+            
+            self.subscribers['x_coordinate'] = rospy.Subscriber(
+                '/x_coordinate',
+                String,
+                self.safe_point_callback_x,
+                queue_size=10
+            )
+
+            self.subscribers['y_coordinate'] = rospy.Subscriber(
+                '/y_coordinate',
+                  String,
+                self.safe_point_callback_z,
+                queue_size=10
+            )
+
+            self.subscribers['z_coordinate'] = rospy.Subscriber(
+                '/z_coordinate',
+                  String,
+                self.safe_point_callback_y,
+                queue_size=10
+            )
+                        
             rospy.loginfo("Subscribers initialized successfully")
             return True
         except Exception as e:
             rospy.logerr(f"Failed to initialize subscribers: {str(e)}")
             return False
     
+    
+    def safe_point_callback_x(self, msg):
+        """Callback for receiving safe point (x, y, z)"""
+        self.update_last_message_time()
+        
+        self.safe_x = msg.data
+        
+        # Optionally, update UI here if you have a label or canvas to show safe point.
+        # Example (only if you have such label):
+        self.safe_label_x.configure(text=f"1: {self.safe_x}")
+
+    def safe_point_callback_y(self, msg):
+        """Callback for receiving safe point (x, y, z)"""
+        self.update_last_message_time()
+        
+        self.safe_x = msg.data
+        
+        # Optionally, update UI here if you have a label or canvas to show safe point.
+        # Example (only if you have such label):
+        self.safe_label_x.configure(text=f"1: {self.safe_x}")
+
+    def safe_point_callback_z(self, msg):
+        """Callback for receiving safe point (x, y, z)"""
+        self.update_last_message_time()
+        
+        self.safe_y = msg.data
+        
+        # Optionally, update UI here if you have a label or canvas to show safe point.
+        # Example (only if you have such label):
+        self.safe_label_y.configure(text=f"2: {self.safe_y}")
+
+    def safe_point_callback_y(self, msg):
+        """Callback for receiving safe point (x, y, z)"""
+        self.update_last_message_time()
+        
+        self.safe_z = msg.data
+        
+        # Optionally, update UI here if you have a label or canvas to show safe point.
+        # Example (only if you have such label):
+        self.safe_label_z.configure(text=f"3: {self.safe_z}")
+        
     def velocity_local_callback(self, msg):
         """Process local velocity data (includes vertical and horizontal components)"""
         self.update_last_message_time()

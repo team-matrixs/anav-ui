@@ -70,12 +70,12 @@ class RTABMapEmbed:
                 'QT_AUTO_SCREEN_SCALE_FACTOR': '0'
             })
             
-            self.rtabmap_process = subprocess.Popen(
-                ["rviz"],
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
+            # self.rtabmap_process = subprocess.Popen(
+            #     ["roslaunch depthai_ros_driver rtabmap.launch"],
+            #     env=env,
+            #     stdout=subprocess.PIPE,
+            #     stderr=subprocess.PIPE
+            # )
             
             # Initialize X display in a separate thread
             self.display_thread = threading.Thread(target=self.init_display)
@@ -107,7 +107,7 @@ class RTABMapEmbed:
             for window_id in window_ids:
                 window = self.display.create_resource_object('window', window_id)
                 try:
-                    if "RViz" in str(window.get_wm_name()):
+                    if "rtabmap" in str(window.get_wm_name()):
                         return window
                 except:
                     continue
@@ -229,7 +229,7 @@ class FlightDataApp():
             self.status_label2, self.status_label4, self.vertical_circle, 
             self.battery_low_circle_id, self.horizontal_circle, 
             self.horizontal_circle_id, self.vertical_label, 
-            self.horizontal_label, self.height_label)
+            self.horizontal_label, self.height_label, self.x_label_safe, self.y_label_safe, self.z_label_safe)
         
         self.camera_node = CameraSubscriber(self.update_camera_frame)
 
@@ -338,7 +338,7 @@ class FlightDataApp():
         self.status_label1.grid(row=0, column=0, sticky="e", padx=(25, 5), pady=0)
         
         self.status_label2 = ctk.CTkLabel(
-            self.navbar_status_box, text="", 
+            self.navbar_status_box, text="85%", 
             font=("Arial", 18, "bold"), text_color="#00FF3B")
         self.status_label2.grid(row=0, column=1, sticky="w", padx=(0, 20), pady=0)
         
@@ -349,7 +349,7 @@ class FlightDataApp():
         self.status_label3.grid(row=0, column=2, sticky="e", padx=(0, 5), pady=0)
         
         self.status_label4 = ctk.CTkLabel(
-            self.navbar_status_box, text="", 
+            self.navbar_status_box, text="Normal", 
             font=("Arial", 18, "bold"), text_color="#00FF3B")
         self.status_label4.grid(row=0, column=3, sticky="w", padx=(0, 20), pady=0)
 
@@ -508,17 +508,17 @@ class FlightDataApp():
         
         # Data labels
         self.x_label_safe = ctk.CTkLabel(
-            self.safe_site_data_frame, text="X : 00", 
+            self.safe_site_data_frame, text="1 : 00", 
             font=("Arial", 18, "bold"), text_color="#0048FF")
         self.x_label_safe.grid(row=0, column=0, padx=5, pady=5, sticky="w")
         
         self.y_label_safe = ctk.CTkLabel(
-            self.safe_site_data_frame, text="Y : 00", 
+            self.safe_site_data_frame, text="2 : 00", 
             font=("Arial", 18, "bold"), text_color="#19FF00")
         self.y_label_safe.grid(row=1, column=0, padx=5, pady=5, sticky="w")
         
         self.z_label_safe = ctk.CTkLabel(
-            self.safe_site_data_frame, text="Z : 00", 
+            self.safe_site_data_frame, text="3 : 00", 
             font=("Arial", 18, "bold"), text_color="#FF0000")
         self.z_label_safe.grid(row=2, column=0, padx=5, pady=5, sticky="w")
 
@@ -642,7 +642,7 @@ class FlightDataApp():
             self.camera_section, 
             fg_color="#2B2828", 
             corner_radius=15,
-            height=350)  # Fixed height of 500 pixels
+            height=500)  # Fixed height of 500 pixels
         self.camera_box.grid(
             row=1, column=0, 
             sticky="nsew", 

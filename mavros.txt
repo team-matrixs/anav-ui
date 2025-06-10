@@ -13,8 +13,8 @@ param6: 0.0
 param7: 0.0"
 
 
-param set SR0_RAW_SENS 50    # RAW_IMU at 50Hz (for EKF)
-param set SR0_POSITION 50    # Local position at 50Hz
-param set SR0_EXT_STAT 5     # Battery/status at 5Hz
-param set SR0_EXTRA3 10      # AHRS (filtered IMU) at 10Hz
+param set SR0_RAW_SENS 50   
+param set SR0_POSITION 50    
+param set SR0_EXT_STAT 5    
+param set SR0_EXTRA3 10      
 save
