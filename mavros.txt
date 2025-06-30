@@ -1,0 +1,19 @@
+
+
+mavproxy.py --master=/dev/serial0 --baudrate=921600
+
+param set SR0_RAW_SENS 50   
+param set SR0_POSITION 50    
+param set SR0_EXT_STAT 5    
+param set SR0_EXTRA3 10      
+save
+
+ros2 run mavros mavros_node --ros-args -p fcu_url:=serial:///dev/serial0:921600 -p sysid:=1 -p compid:=1
+
+
+ros2 service call /mavros/cmd/command mavros_msgs/srv/CommandLong \
+"{
+  command: 511,  # MAV_CMD_SET_MESSAGE_INTERVAL
+  param1: 30,    # MAVLINK_MSG_ID_RAW_IMU (or 26 for SCALED_IMU)
+  param2: 100000 # Interval in microseconds (e.g., 100ms = 10Hz)
+}"

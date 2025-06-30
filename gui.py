@@ -1,31 +1,39 @@
+#!/usr/bin/env python3
 import customtkinter as ctk
 import os
 import tkinter as tk
-from subscriber import SensorSubscriber
-import rclpy
 import threading
-from rclpy.executors import MultiThreadedExecutor
-from camera_subscriber import CameraSubscriber
 import cv2
 from PIL import Image, ImageTk
-
-
-import os
 import subprocess
-import threading
 import time
-import customtkinter as ctk
 import numpy as np
 import Xlib.display
 import Xlib.X
-import cv2
 from collections import deque
-from PIL import Image
-import tkinter as tk
 from subscriber import SensorSubscriber
 import rclpy
-from rclpy.executors import MultiThreadedExecutor
-from camera_subscriber import CameraSubscriber
+from rclpy.node import Node
+from std_msgs.msg import Bool
+from sensor_msgs.msg import Imu
+from sensor_msgs.msg import Image as SensorImage
+from cv_bridge import CvBridge
+from geometry_msgs.msg import Vector3
+import math
+
+class AutonomousController(Node):
+    def __init__(self):
+        super().__init__('autonomous_controller')
+        self.autonomous_pub = self.create_publisher(Bool, '/autonomous_mode', 10)
+        self.current_mode = False
+        
+    def set_mode(self, mode):
+        """Set autonomous mode and publish to topic"""
+        self.current_mode = mode
+        msg = Bool()
+        msg.data = self.current_mode
+        self.autonomous_pub.publish(msg)
+        self.get_logger().info(f"Autonomous mode set to: {self.current_mode}")
 
 
 class RTABMapEmbed:
@@ -67,12 +75,13 @@ class RTABMapEmbed:
                 'QT_AUTO_SCREEN_SCALE_FACTOR': '0'
             })
             
-            self.rtabmap_process = subprocess.Popen(
-                ["rviz2"],
-                env=env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
+            # For ROS 2, the launch command would be different
+            # self.rtabmap_process = subprocess.Popen(
+            #     ["ros2 launch depthai_ros_driver rtabmap.launch.py"],
+            #     env=env,
+            #     stdout=subprocess.PIPE,
+            #     stderr=subprocess.PIPE
+            # )
             
             # Initialize X display in a separate thread
             self.display_thread = threading.Thread(target=self.init_display)
@@ -104,7 +113,7 @@ class RTABMapEmbed:
             for window_id in window_ids:
                 window = self.display.create_resource_object('window', window_id)
                 try:
-                    if "RViz" in str(window.get_wm_name()):
+                    if "rviz" in str(window.get_wm_name()).lower():
                         return window
                 except:
                     continue
@@ -114,7 +123,7 @@ class RTABMapEmbed:
 
     def capture_loop(self):
         """Main capture loop for RTAB-Map window"""
-        while self.running:
+        while self.running and rclpy.ok():
             try:
                 # Find window periodically
                 current_time = time.time()
@@ -154,7 +163,7 @@ class RTABMapEmbed:
                 if self.capture_scale != 1.0:
                     frame = cv2.resize(frame, 
                                      (int(geometry.width * self.capture_scale),
-                                     int(geometry.height * self.capture_scale)),
+                                      int(geometry.height * self.capture_scale)),
                                      interpolation=cv2.INTER_LINEAR)
                 
                 # Add to frame buffer
@@ -163,10 +172,10 @@ class RTABMapEmbed:
                 # Schedule display update
                 self.parent.after(0, self.update_display)
                 
-                self.last_frame_time = time.time()
+                self.last_frame_time = current_time
                 
             except Exception as e:
-                print(f"RTAB-Map capture error: {e}")
+                print(f"RTAB-Map capture error: {str(e)}")
                 time.sleep(0.1)
 
     def update_display(self):
@@ -180,7 +189,7 @@ class RTABMapEmbed:
                 ctk_image = ctk.CTkImage(light_image=image, size=(width, height))
                 self.image_label.configure(image=ctk_image)
             except Exception as e:
-                print(f"RTAB-Map display error: {e}")
+                print(f"RTAB-Map display error: {str(e)}")
 
     def stop_capture(self):
         """Stop the RTAB-Map capture"""
@@ -188,13 +197,14 @@ class RTABMapEmbed:
             self.running = False
             if self.rtabmap_process:
                 self.rtabmap_process.terminate()
+                try:
+                    self.rtabmap_process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    self.rtabmap_process.kill()
             if self.display:
                 self.display.close()
 
-
-
 class FlightDataApp():
-
     def __init__(self):
         self.app = ctk.CTk()
         self.app.title("Flight Data - (Team Matrix)")
@@ -202,43 +212,37 @@ class FlightDataApp():
         if os.path.exists(logo_path):
             icon_image = tk.PhotoImage(file=logo_path)
             self.app.wm_iconphoto(True, icon_image)
-        
-        # Set window to full screen by default
-        # self.app.attributes('-fullscreen', True)
-        
+        self.app.configure(fg_color="#221F1F")
         # Configure grid for responsiveness
         self.app.grid_columnconfigure(0, weight=1)
         self.app.grid_rowconfigure(1, weight=1)
+        
+        # Initialize ROS 2
+        rclpy.init()
+        
+        # Create ROS 2 nodes
+        self.autonomous_controller = AutonomousController()
         
         # Initialize UI components
         self.create_nav_bar()
         self.create_main_content()
         
-        # Initialize ROS 2
-        rclpy.init()
-
-        # Create ROS 2 nodes
+        # Create ROS 2 subscribers
         self.imu_node = SensorSubscriber(
             self.app, self.x_label, self.y_label, self.z_label, 
             self.status_label2, self.status_label4, self.vertical_circle, 
             self.battery_low_circle_id, self.horizontal_circle, 
             self.horizontal_circle_id, self.vertical_label, 
-            self.horizontal_label, self.height_label)
+            self.horizontal_label, self.height_label, self.x_label_safe, 
+            self.y_label_safe, self.z_label_safe)
         
-        self.camera_node = CameraSubscriber(self.update_camera_frame)
 
-        # Use MultiThreadedExecutor for nodes
-        self.executor = MultiThreadedExecutor()
-        self.executor.add_node(self.imu_node)
-        self.executor.add_node(self.camera_node)
-
-        # Start ROS 2 in a separate thread
-        self.ros_thread = threading.Thread(target=self.run_ros_executor)
+        # Start ROS nodes in separate threads
+        self.ros_thread = threading.Thread(target=self.run_ros_nodes)
         self.ros_thread.daemon = True
         self.ros_thread.start()
 
-
-        self.rtabmap_embed = RTABMapEmbed(self.camera_box_2)
+        self.rtabmap_embed = RTABMapEmbed(self.camera_box)
         self.rtabmap_embed.start_capture()
 
         # Handle app close event
@@ -266,8 +270,20 @@ class FlightDataApp():
             self.image_label.image = tk_img  # Keep reference
     
         except Exception as e:
-            print(f"Error updating camera frame: {e}")
+            print(f"Error updating camera frame: {str(e)}")
 
+    def run_ros_nodes(self):
+        """Run ROS nodes in separate threads"""
+        executor = rclpy.executors.MultiThreadedExecutor()
+        executor.add_node(self.autonomous_controller)
+        executor.add_node(self.imu_node)
+        
+        try:
+            executor.spin()
+        finally:
+            executor.shutdown()
+            self.autonomous_controller.destroy_node()
+            self.imu_node.destroy_node()
 
     def on_window_resize(self, event):
         """Handle window resize events to maintain aspect ratio"""
@@ -284,29 +300,16 @@ class FlightDataApp():
             
             # Resize window to maintain aspect ratio
             if event.widget == self.app:
-                self.app.geometry(f"{width}x{target_height}")
-
-    def run_ros_executor(self):
-        """Run the ROS 2 executor to manage multiple nodes safely."""
-        try:
-            self.executor.spin()
-        except Exception as e:
-            print(f"ROS Executor Error: {e}")
-        finally:
-            self.executor.shutdown()
+                self.app.geometry("%dx%d" % (width, target_height))
 
     def on_close(self):
         """Handles application exit gracefully."""
         print("Shutting down...")
         
-        # Stop the executor
-        self.executor.shutdown()
+        # Stop RTAB-Map capture
+        self.rtabmap_embed.stop_capture()
         
-        # Destroy nodes
-        self.imu_node.destroy_node()
-        self.camera_node.destroy_node()
-        
-        # Shutdown ROS
+        # Shutdown ROS 2
         rclpy.shutdown()
         
         # Close UI
@@ -324,7 +327,7 @@ class FlightDataApp():
         # Navigation heading
         self.navbar_heading = ctk.CTkLabel(
             self.nav_bar, text="Flight Data", 
-            font=("Arial", 30, "bold"))
+            font=("Arial", 30, "bold"), text_color="#ffffff")
         self.navbar_heading.grid(row=0, column=0, sticky="w", padx=30, pady=0)
         
         # Status box
@@ -344,23 +347,23 @@ class FlightDataApp():
         # Battery Status
         self.status_label1 = ctk.CTkLabel(
             self.navbar_status_box, text="Battery: ", 
-            font=("Arial", 18, "bold"))
+            font=("Arial", 18, "bold"), text_color="#FFFFFF")
         self.status_label1.grid(row=0, column=0, sticky="e", padx=(25, 5), pady=0)
         
         self.status_label2 = ctk.CTkLabel(
-            self.navbar_status_box, text="", 
-            font=("Arial", 18, "bold"), text_color="#00FF3B")
+            self.navbar_status_box, text="0%", 
+            font=("Arial", 18, "bold"), text_color="#FF0000")
         self.status_label2.grid(row=0, column=1, sticky="w", padx=(0, 20), pady=0)
         
         # Battery Health
         self.status_label3 = ctk.CTkLabel(
             self.navbar_status_box, text="Health: ", 
-            font=("Arial", 18, "bold"))
+            font=("Arial", 18, "bold"), text_color="#FFFFFF")
         self.status_label3.grid(row=0, column=2, sticky="e", padx=(0, 5), pady=0)
         
         self.status_label4 = ctk.CTkLabel(
-            self.navbar_status_box, text="", 
-            font=("Arial", 18, "bold"), text_color="#00FF3B")
+            self.navbar_status_box, text="Normal", 
+            font=("Arial", 18, "bold"), text_color="#FF0000")
         self.status_label4.grid(row=0, column=3, sticky="w", padx=(0, 20), pady=0)
 
     def create_main_content(self):
@@ -381,7 +384,7 @@ class FlightDataApp():
         # Telemetry Heading
         self.telemetry_heading = ctk.CTkLabel(
             self.main_content, text="Telemetry Information", 
-            font=("Arial", 28, "bold"), fg_color="transparent")
+            font=("Arial", 28, "bold"), fg_color="transparent", text_color="#FFFFFF")
         self.telemetry_heading.grid(
             row=0, column=0, padx=20, pady=(0, 10), sticky="w")
         
@@ -518,17 +521,17 @@ class FlightDataApp():
         
         # Data labels
         self.x_label_safe = ctk.CTkLabel(
-            self.safe_site_data_frame, text="X : 00", 
+            self.safe_site_data_frame, text="1 : 00", 
             font=("Arial", 18, "bold"), text_color="#0048FF")
         self.x_label_safe.grid(row=0, column=0, padx=5, pady=5, sticky="w")
         
         self.y_label_safe = ctk.CTkLabel(
-            self.safe_site_data_frame, text="Y : 00", 
+            self.safe_site_data_frame, text="2 : 00", 
             font=("Arial", 18, "bold"), text_color="#19FF00")
         self.y_label_safe.grid(row=1, column=0, padx=5, pady=5, sticky="w")
         
         self.z_label_safe = ctk.CTkLabel(
-            self.safe_site_data_frame, text="Z : 00", 
+            self.safe_site_data_frame, text="3 : 00", 
             font=("Arial", 18, "bold"), text_color="#FF0000")
         self.z_label_safe.grid(row=2, column=0, padx=5, pady=5, sticky="w")
 
@@ -622,15 +625,17 @@ class FlightDataApp():
         self.control_switch = ctk.CTkSwitch(
             self.control_frame,
             text="Autonomous Mode",
+            text_color="#ffffff",
             font=("Arial", 18),
             corner_radius=20,
             switch_width=60,
             switch_height=30,
+            command=self.on_autonomous_switch_changed
         )
         self.control_switch.pack(pady=10)
 
     def create_camera_section(self):
-        """Create the camera display section"""
+        """Create the camera display section with full-width RTAB-Map view"""
         self.camera_section = ctk.CTkFrame(
             self.main_content, fg_color="transparent")
         self.camera_section.grid(
@@ -640,53 +645,43 @@ class FlightDataApp():
         
         # Camera Heading
         self.camera_heading = ctk.CTkLabel(
-            self.camera_section, text="Camera Feeds", 
-            font=("Arial", 24, "bold"), fg_color="transparent")
+        self.camera_section, text="Elevation Map View", 
+            font=("Arial", 24, "bold"), fg_color="transparent", text_color="#FFFFFF")
         self.camera_heading.grid(
-            row=0, column=0, padx=20, pady=(0, 10), sticky="w")
+        row=0, column=0, padx=20, pady=(0, 10), sticky="w")
         
-        # Camera Container
-        self.camera_container = ctk.CTkFrame(
-            self.camera_section, fg_color="transparent")
-        self.camera_container.grid(
-            row=1, column=0, sticky="nsew", padx=0, pady=0)
+        # Single camera container with fixed height
+        self.camera_box = ctk.CTkFrame(
+            self.camera_section, 
+            fg_color="#2B2828", 
+            corner_radius=15,
+            height=405)  # Fixed height of 500 pixels
+        self.camera_box.grid(
+            row=1, column=0, 
+            sticky="nsew", 
+            padx=5, pady=5)
+        self.camera_box.grid_propagate(False)  # Prevent resizing
+        self.camera_box.grid_rowconfigure(0, weight=1)
+        self.camera_box.grid_columnconfigure(0, weight=1)
         
-        # Configure grid for camera feeds (2 columns)
-        self.camera_container.grid_columnconfigure(0, weight=1)
-        self.camera_container.grid_columnconfigure(1, weight=1)
-        self.camera_container.grid_rowconfigure(0, weight=1)
-        
-        # Camera 1 (regular camera feed)
-        self.camera_box_1 = ctk.CTkFrame(
-            self.camera_container, fg_color="#2B2828", corner_radius=15)
-        self.camera_box_1.grid(
-            row=0, column=0, padx=5, pady=5, sticky="nsew")
-        self.camera_box_1.grid_rowconfigure(0, weight=1)
-        self.camera_box_1.grid_columnconfigure(0, weight=1)
-        
-        # Load placeholder image for Camera 1
-        self.image_path = os.path.join(
-            os.path.dirname(__file__), "assets/images/camera_1.png")
-        self.image = ctk.CTkImage(
-            light_image=Image.open(self.image_path), 
-            size=(400, 300))
-        
-        self.image_label = ctk.CTkLabel(
-            self.camera_box_1, text="", image=self.image)
-        self.image_label.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-        
-        # Camera 2 (RTAB-Map will be embedded here)
-        self.camera_box_2 = ctk.CTkFrame(
-            self.camera_container, fg_color="#2B2828", corner_radius=15)
-        self.camera_box_2.grid(
-            row=0, column=1, padx=5, pady=5, sticky="nsew")
-        self.camera_box_2.grid_rowconfigure(0, weight=1)
-        self.camera_box_2.grid_columnconfigure(0, weight=1)
+        # Create image label for camera feed
+        self.image_label = ctk.CTkLabel(self.camera_box, text="")
+        self.image_label.grid(row=0, column=0, sticky="nsew")
 
+    def on_autonomous_switch_changed(self):
+        """Handle autonomous mode switch changes"""
+        mode = self.control_switch.get()
+        self.autonomous_controller.set_mode(mode)
+        
+        # Visual feedback
+        if mode:
+            self.control_switch.configure(text="Autonomous Mode: ON")
+        else:
+            self.control_switch.configure(text="Autonomous Mode: OFF")
+        
     def run(self):
         """Run the application"""
         self.app.mainloop()
-
 
 if __name__ == "__main__":
     app = FlightDataApp()
