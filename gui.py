@@ -406,7 +406,7 @@ class FlightDataApp():
         self.create_safe_mode_box()
         
         # Control Mode box (special case, goes to the side)
-        self.create_control_mode_box()
+        # self.create_control_mode_box()
 
     def create_angular_velocity_box(self):
         """Create the orientation/angular velocity box"""
@@ -655,7 +655,7 @@ class FlightDataApp():
             self.camera_section, 
             fg_color="#2B2828", 
             corner_radius=15,
-            height=405)  # Fixed height of 500 pixels
+            height=450)  # Fixed height of 500 pixels
         self.camera_box.grid(
             row=1, column=0, 
             sticky="nsew", 
