@@ -45,10 +45,103 @@ class SensorSubscriber(Node):
         self.last_message_time = self.get_clock().now()
         self.connection_active = True
 
-        self.init_subscribers()
+        # Battery simulation parameters (adjusted for 3S LiPo)
+        self.current_voltage = 12.6  # Initial voltage (fully charged 3S LiPo)
+        self.voltage_min = 10.5      # Minimum safe voltage (3.5V per cell)
+        self.voltage_max = 12.6      # Maximum voltage (4.2V per cell)
+        self.battery_drop_timer = self.create_timer(60.0, self.simulate_battery_drop)
 
+        self.init_subscribers()
         self.connection_timer = self.create_timer(1.0, self.check_connection_status)
-    
+
+    def simulate_battery_drop(self):
+        """Simulate battery voltage drop by 0.2V every minute"""
+        if self.current_voltage > self.voltage_min:
+            self.current_voltage -= 0.2
+            self.current_voltage = max(self.current_voltage, self.voltage_min)
+            
+            # Create a mock BatteryState message
+            mock_msg = BatteryState()
+            mock_msg.voltage = self.current_voltage
+            # Calculate percentage based on voltage range
+            mock_msg.percentage = (self.current_voltage - self.voltage_min) / (self.voltage_max - self.voltage_min)
+            
+            # Process it through our existing callback
+            self.battery_callback(mock_msg)
+
+    def battery_callback(self, msg):
+        """Handle battery status messages and update GUI"""
+        try:
+            # Use simulated voltage if connection is lost
+            if not self.connection_active:
+                msg.voltage = self.current_voltage
+                msg.percentage = (self.current_voltage - self.voltage_min) / (self.voltage_max - self.voltage_min)
+            
+            # Process battery data
+            battery_level = msg.percentage * 100
+            battery_voltage = msg.voltage
+            
+            # Determine battery health (adjusted for 3S LiPo)
+            if battery_voltage < 11.1:  # 3.7V per cell (3S)
+                battery_health = "Critical"
+                health_color = "#FF0000"  # Red
+            elif battery_voltage < 11.4:  # 3.8V per cell
+                battery_health = "Low"
+                health_color = "#FFA500"  # Orange
+            else:
+                battery_health = "Normal"
+                health_color = "#00FF3B"  # Green
+                
+            # Determine battery indicator color
+            battery_color = "#00FF3B" if battery_level > 20 else "#FF0000"
+            
+            # Update GUI on main thread
+            if self.app:
+                self.app.after(0, lambda: [
+                    self.battery_percentage_label.configure(text=f"{battery_level:.0f}% ({battery_voltage:.1f}V)"),
+                    self.battery_health_label.configure(text=battery_health, text_color=health_color),
+                    self.battery_low_circle.itemconfig(self.oval_id, fill=battery_color)
+                ])
+            
+        except Exception as e:
+            self.get_logger().error(f"Error processing battery data: {str(e)}")
+            
+    # def battery_callback(self, msg):
+        """Handle battery status messages and update GUI"""
+        try:
+            # Use simulated voltage if connection is lost
+            if not self.connection_active:
+                msg.voltage = self.current_voltage
+                msg.percentage = (self.current_voltage - self.voltage_min) / (self.voltage_max - self.voltage_min)
+            
+            # Process battery data
+            battery_level = msg.percentage * 100
+            battery_voltage = msg.voltage
+            
+            # Determine battery health
+            if battery_voltage < 21.6:  # 3.6V per cell (6S)
+                battery_health = "Critical"
+                health_color = "#FF0000"  # Red
+            elif battery_voltage < 22.8:  # 3.8V per cell
+                battery_health = "Low"
+                health_color = "#FFA500"  # Orange
+            else:
+                battery_health = "Normal"
+                health_color = "#00FF3B"  # Green
+                
+            # Determine battery indicator color
+            battery_color = "#00FF3B" if battery_level > 20 else "#FF0000"
+            
+            # Update GUI on main thread
+            if self.app:
+                self.app.after(0, lambda: [
+                    self.battery_percentage_label.configure(text=f"{battery_level:.0f}% ({battery_voltage:.1f}V)"),
+                    self.battery_health_label.configure(text=battery_health, text_color=health_color),
+                    self.battery_low_circle.itemconfig(self.oval_id, fill=battery_color)
+                ])
+            
+        except Exception as e:
+            self.get_logger().error(f"Error processing battery data: {str(e)}")
 
     def init_subscribers(self):
         self.mavros_qos = QoSProfile(depth=10)
