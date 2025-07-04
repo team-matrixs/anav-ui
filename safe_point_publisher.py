@@ -15,13 +15,26 @@ class SafePointPublisher(Node):
         self.x_pub = self.create_publisher(String, '/x_coordinate', 10)
         self.y_pub = self.create_publisher(String, '/y_coordinate', 10)
         self.z_pub = self.create_publisher(String, '/z_coordinate', 10)
-        
+        label = ["x", "y", "z"]
+        c1 = print("enter 1 : ")
+        for i in range(0, 3):
+            c1 = f"{label[i]}:"+input(f"{label[i]}: ")
+        c2 = print("enter 2: ")
+        for i in range(0, 3):
+            c2 = f"{label[i]}:"+input(f"{label[i]}: ")
+        c3 = print("enter 3: ")
+        for i in range(0, 3):
+            c3 = f"{label[i]}:"+input(f"{label[i]}: ")
+
         # Predefined coordinate sets
         self.coordinate_sets = [
             "X:11, Y:12, Z:13",
             "X:21, Y:22, Z:23", 
             "X:31, Y:32, Z:33"
         ]
+
+    
+
         self.current_set = 0
         
         # Configure terminal for non-blocking input
@@ -44,12 +57,15 @@ class SafePointPublisher(Node):
         
         if self.enter_pressed:
             # Publish current coordinate set
-            msg = String()
-            msg.data = self.coordinate_sets[self.current_set]
-            self.x_pub.publish(msg)
-            self.y_pub.publish(msg)
-            self.z_pub.publish(msg)
-            self.get_logger().info(f"Published: {msg.data}")
+            msg1 = String()
+            msg1.data = self.coordinate_sets[0]
+            msg2 = String()
+            msg2.data = self.coordinate_sets[1]
+            msg3 = String()
+            msg3.data = self.coordinate_sets[2]
+            self.x_pub.publish(msg1)
+            self.y_pub.publish(msg2)
+            self.z_pub.publish(msg3)
         else:
             # Publish zeros
             zero_msg = String()
