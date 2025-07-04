@@ -3,11 +3,12 @@
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from sensor_msgs.msg import Imu, BatteryState
+from sensor_msgs.msg import Imu, BatteryState, Range
 from geometry_msgs.msg import TwistStamped, PoseStamped
 from mavros_msgs.msg import Altitude
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 import math
+import time
 
 class SensorSubscriber(Node):
     def __init__(self, app=None, x_label=None, y_label=None, z_label=None,
@@ -39,155 +40,93 @@ class SensorSubscriber(Node):
         self.x = self.y = self.z = 0.0
         self.vv = self.hv = self.hv_north = self.hv_east = 0.0
         self.altitude = self.height_above_home = 0.0
-        self.battery_percentage = 100.0
+        self.rangefinder_height = 0.0  # New variable for rangefinder height
+        self.battery_percentage = 90.0
+        self.last_battery_update = time.time()
         self.safe_x = self.safe_y = self.safe_z = ""
+        self.rangefinder_available = False  # Track rangefinder status
+        self.last_rangefinder_time = 0.0 
 
         self.last_message_time = self.get_clock().now()
         self.connection_active = True
 
-        # Battery simulation parameters (adjusted for 3S LiPo)
-        self.current_voltage = 12.6  # Initial voltage (fully charged 3S LiPo)
-        self.voltage_min = 10.5      # Minimum safe voltage (3.5V per cell)
-        self.voltage_max = 12.6      # Maximum voltage (4.2V per cell)
-        self.battery_drop_timer = self.create_timer(60.0, self.simulate_battery_drop)
-
         self.init_subscribers()
+        self.update_battery()
         self.connection_timer = self.create_timer(1.0, self.check_connection_status)
-
-    def simulate_battery_drop(self):
-        """Simulate battery voltage drop by 0.2V every minute"""
-        if self.current_voltage > self.voltage_min:
-            self.current_voltage -= 0.2
-            self.current_voltage = max(self.current_voltage, self.voltage_min)
-            
-            # Create a mock BatteryState message
-            mock_msg = BatteryState()
-            mock_msg.voltage = self.current_voltage
-            # Calculate percentage based on voltage range
-            mock_msg.percentage = (self.current_voltage - self.voltage_min) / (self.voltage_max - self.voltage_min)
-            
-            # Process it through our existing callback
-            self.battery_callback(mock_msg)
-
-    def battery_callback(self, msg):
-        """Handle battery status messages and update GUI"""
-        try:
-            # Use simulated voltage if connection is lost
-            if not self.connection_active:
-                msg.voltage = self.current_voltage
-                msg.percentage = (self.current_voltage - self.voltage_min) / (self.voltage_max - self.voltage_min)
-            
-            # Process battery data
-            battery_level = msg.percentage * 100
-            battery_voltage = msg.voltage
-            
-            # Determine battery health (adjusted for 3S LiPo)
-            if battery_voltage < 11.1:  # 3.7V per cell (3S)
-                battery_health = "Critical"
-                health_color = "#FF0000"  # Red
-            elif battery_voltage < 11.4:  # 3.8V per cell
-                battery_health = "Low"
-                health_color = "#FFA500"  # Orange
-            else:
-                battery_health = "Normal"
-                health_color = "#00FF3B"  # Green
-                
-            # Determine battery indicator color
-            battery_color = "#00FF3B" if battery_level > 20 else "#FF0000"
-            
-            # Update GUI on main thread
-            if self.app:
-                self.app.after(0, lambda: [
-                    self.battery_percentage_label.configure(text=f"{battery_level:.0f}% ({battery_voltage:.1f}V)"),
-                    self.battery_health_label.configure(text=battery_health, text_color=health_color),
-                    self.battery_low_circle.itemconfig(self.oval_id, fill=battery_color)
-                ])
-            
-        except Exception as e:
-            self.get_logger().error(f"Error processing battery data: {str(e)}")
-            
-    # def battery_callback(self, msg):
-        """Handle battery status messages and update GUI"""
-        try:
-            # Use simulated voltage if connection is lost
-            if not self.connection_active:
-                msg.voltage = self.current_voltage
-                msg.percentage = (self.current_voltage - self.voltage_min) / (self.voltage_max - self.voltage_min)
-            
-            # Process battery data
-            battery_level = msg.percentage * 100
-            battery_voltage = msg.voltage
-            
-            # Determine battery health
-            if battery_voltage < 21.6:  # 3.6V per cell (6S)
-                battery_health = "Critical"
-                health_color = "#FF0000"  # Red
-            elif battery_voltage < 22.8:  # 3.8V per cell
-                battery_health = "Low"
-                health_color = "#FFA500"  # Orange
-            else:
-                battery_health = "Normal"
-                health_color = "#00FF3B"  # Green
-                
-            # Determine battery indicator color
-            battery_color = "#00FF3B" if battery_level > 20 else "#FF0000"
-            
-            # Update GUI on main thread
-            if self.app:
-                self.app.after(0, lambda: [
-                    self.battery_percentage_label.configure(text=f"{battery_level:.0f}% ({battery_voltage:.1f}V)"),
-                    self.battery_health_label.configure(text=battery_health, text_color=health_color),
-                    self.battery_low_circle.itemconfig(self.oval_id, fill=battery_color)
-                ])
-            
-        except Exception as e:
-            self.get_logger().error(f"Error processing battery data: {str(e)}")
+        self.battery_timer = self.create_timer(60.0, self.update_battery)  # Update battery every minute
+        self.rangefinder_check_timer = self.create_timer(5.0, self.check_rangefinder_status)
 
     def init_subscribers(self):
         self.mavros_qos = QoSProfile(depth=10)
         self.mavros_qos.reliability = ReliabilityPolicy.BEST_EFFORT
         self.create_subscription(Imu, '/mavros/imu/data', self.imu_callback, self.mavros_qos)
-        self.create_subscription(BatteryState, '/mavros/battery', self.battery_callback, self.mavros_qos)
         self.create_subscription(TwistStamped, '/mavros/local_position/velocity_local', self.velocity_local_callback, self.mavros_qos)
         self.create_subscription(Altitude, '/mavros/altitude', self.altitude_callback, self.mavros_qos)
         self.create_subscription(PoseStamped, '/mavros/local_position/pose', self.local_position_callback, self.mavros_qos)
+        # Add rangefinder subscriber
+        self.create_subscription(Range, '/mavros/rangefinder/rangefinder', self.rangefinder_callback, self.mavros_qos)
         self.create_subscription(String, '/x_coordinate', self.safe_point_callback_x, self.mavros_qos)
         self.create_subscription(String, '/y_coordinate', self.safe_point_callback_z, self.mavros_qos)
         self.create_subscription(String, '/z_coordinate', self.safe_point_callback_y, self.mavros_qos)
 
         self.get_logger().info("All subscribers initialized.")
 
+    def check_rangefinder_status(self):
+        """Check if we're receiving rangefinder data"""
+        current_time = time.time()
+        if current_time - self.last_rangefinder_time > 5.0 and self.rangefinder_available:
+            self.rangefinder_available = False
+            self.get_logger().warn("Rangefinder data not received recently")
+            self.update_height_display()
+        elif current_time - self.last_rangefinder_time <= 5.0 and not self.rangefinder_available:
+            self.rangefinder_available = True
+            self.get_logger().info("Rangefinder data available")
 
-    def battery_callback(self, msg):
-        """Handle battery status messages and update GUI"""
+    def rangefinder_callback(self, msg):
+        """Callback for rangefinder data"""
+        self.update_last_message_time()
+        self.rangefinder_height = msg.range
+        self.last_rangefinder_time = time.time()
+        self.rangefinder_available = True
+        self.update_height_display()
+
+    def update_height_display(self):
+        """Update height display with rangefinder data if available"""
+        if self.height_label:
+            display_text = f"Height: {self.rangefinder_height:.2f} m"
+            self.height_label.configure(text=display_text)
+            self.safe_update_ui()
+
+    def update_battery(self):
+        """Decrease battery percentage by 1% each minute"""
+        if self.battery_percentage > 0:
+            self.battery_percentage -= 1.0
+            self.update_battery_display()
+
+    def update_battery_display(self):
+        """Update battery display based on current percentage"""
         try:
-            # Process battery data
-            battery_level = msg.percentage * 100
-            
             # Determine battery health
-            if msg.voltage < 0:  # 20% of design capacity
+            if self.battery_percentage < 10:  # Critical below 10%
                 battery_health = "Critical"
                 health_color = "#FF0000"  # Red
-            elif msg.voltage < 20:
+            elif self.battery_percentage < 30:  # Low below 30%
                 battery_health = "Low"
                 health_color = "#FFA500"  # Orange
             else:
                 battery_health = "Normal"
                 health_color = "#00FF3B"  # Green
                 
-            # Determine battery indicator color
-            battery_color = "#00FF3B" if battery_level > 20 else "#FF0000"
-            
             # Update GUI on main thread
-            self.app.after(0, lambda: [
-                self.battery_percentage_label.configure(text=f"{battery_level:.0f}%"),
-                self.battery_health_label.configure(text=battery_health, text_color=health_color),
-                self.battery_low_circle.itemconfig(self.oval_id, fill=battery_color)
-            ])
+            if self.app:
+                self.app.after(0, lambda: [
+                    self.battery_percentage_label.configure(text=f"{self.battery_percentage:.0f}%", text_color=health_color),
+                    self.battery_health_label.configure(text=battery_health, text_color=health_color),
+                    self.battery_low_circle.itemconfig(self.oval_id, fill=health_color)
+                ])
             
         except Exception as e:
-            self.get_logger().error(f"Error processing battery data: {str(e)}")
-
+            self.get_logger().error(f"Error updating battery display: {str(e)}")
 
     def imu_callback(self, msg):
         self.update_last_message_time()
@@ -226,15 +165,17 @@ class SensorSubscriber(Node):
     def local_position_callback(self, msg):
         self.update_last_message_time()
         self.height_above_home = msg.pose.position.z
-        if self.height_label:
-            self.height_label.configure(text=f"Height: {self.height_above_home:.2f} m")
-            self.safe_update_ui()
+        self.update_height_display()
 
     def altitude_callback(self, msg):
         self.update_last_message_time()
         self.altitude = msg.local
         if self.height_label:
-            self.height_label.configure(text=f"Altitude: {self.altitude:.2f} m")
+            if self.rangefinder_available:
+                display_text = f"Altitude: {self.altitude:.2f} m (Rangefinder: {self.rangefinder_height:.2f} m)"
+            else:
+                display_text = f"Altitude: {self.altitude:.2f} m (Rangefinder: N/A)"
+            self.height_label.configure(text=display_text)
             self.safe_update_ui()
 
     def safe_point_callback_x(self, msg):
@@ -270,17 +211,12 @@ class SensorSubscriber(Node):
     def update_last_message_time(self):
         self.last_message_time = self.get_clock().now()
 
-    
-
     def handle_connection_lost(self):
         try:
             if self.battery_health_label:
-                self.battery_health_label.configure(text="No Data", text_color="#FFA500")
-                self.battery_percentage_label.configure(text="00 %", text_color="#FFA500")
                 self.x_label.configure(text="Roll : 00 deg")
                 self.y_label.configure(text="Pitch : 00 deg")
                 self.z_label.configure(text="Yaw : 00 deg")
-                self.battery_low_circle.itemconfig(self.oval_id, fill="#FFA500")
                 self.horizontal_circle.itemconfig(self.horizontal_circle_id, fill="#FF0000")
                 self.height_label.configure(text="Height : 00 m")
                 self.vertical_label.configure(text="Vertical: 0.00 m/s")
@@ -305,3 +241,6 @@ def main(args=None):
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
