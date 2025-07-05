@@ -15,25 +15,28 @@ class SafePointPublisher(Node):
         self.x_pub = self.create_publisher(String, '/x_coordinate', 10)
         self.y_pub = self.create_publisher(String, '/y_coordinate', 10)
         self.z_pub = self.create_publisher(String, '/z_coordinate', 10)
-        label = ["x", "y", "z"]
-        c1 = print("enter 1 : ")
-        for i in range(0, 3):
-            c1 = f"{label[i]}:"+input(f"{label[i]}: ")
-        c2 = print("enter 2: ")
-        for i in range(0, 3):
-            c2 = f"{label[i]}:"+input(f"{label[i]}: ")
-        c3 = print("enter 3: ")
-        for i in range(0, 3):
-            c3 = f"{label[i]}:"+input(f"{label[i]}: ")
+        # label = ["X", "Y", "Z"]
+        # print("enter 1 : ")
+        # c1 = ""
+        # for i in range(0, 3):
+        #     c1 += f" {label[i]}:"+input(f"{label[i]}: ")
+        # print("enter 2: ")
+        # c2 = ""
+        # for i in range(0, 3):
+        #     c2 += f" {label[i]}:"+input(f"{label[i]}: ")
+        # print("enter 3: ")
+        # c3 = ""
+        # for i in range(0, 3):
+        #     c3 += f" {label[i]}:"+input(f"{label[i]}: ")
 
         # Predefined coordinate sets
         self.coordinate_sets = [
-            "X:11, Y:12, Z:13",
-            "X:21, Y:22, Z:23", 
-            "X:31, Y:32, Z:33"
+           "X:-0.6 Y:5.4 Z:0",
+           "X:-3.8 Y:1.9 Z:0",
+           "X:-3.5 Y:5.5 Z:0"
         ]
 
-    
+
 
         self.current_set = 0
         
@@ -69,7 +72,7 @@ class SafePointPublisher(Node):
         else:
             # Publish zeros
             zero_msg = String()
-            zero_msg.data = "X:0, Y:0, Z:0"
+            zero_msg.data = "X:0 Y:0 Z:0"
             self.x_pub.publish(zero_msg)
             self.y_pub.publish(zero_msg)
             self.z_pub.publish(zero_msg)

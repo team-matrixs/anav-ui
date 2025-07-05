@@ -41,7 +41,7 @@ class SensorSubscriber(Node):
         self.vv = self.hv = self.hv_north = self.hv_east = 0.0
         self.altitude = self.height_above_home = 0.0
         self.rangefinder_height = 0.0  # New variable for rangefinder height
-        self.battery_percentage = 90.0
+        self.battery_percentage = 76
         self.last_battery_update = time.time()
         self.safe_x = self.safe_y = self.safe_z = ""
         self.rangefinder_available = False  # Track rangefinder status
@@ -100,7 +100,7 @@ class SensorSubscriber(Node):
     def update_battery(self):
         """Decrease battery percentage by 1% each minute"""
         if self.battery_percentage > 0:
-            self.battery_percentage -= 1.0
+            self.battery_percentage -= 2.0
             self.update_battery_display()
 
     def update_battery_display(self):

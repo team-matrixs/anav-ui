@@ -29,9 +29,10 @@ class AutonomousController(Node):
         
     def set_mode(self, mode):
         """Set autonomous mode and publish to topic"""
-        self.current_mode = mode
+        # Ensure mode is converted to proper boolean
+        self.current_mode = bool(mode)
         msg = Bool()
-        msg.data = self.current_mode
+        msg.data = bool(self.current_mode)  # Explicit bool conversion
         self.autonomous_pub.publish(msg)
         self.get_logger().info(f"Autonomous mode set to: {self.current_mode}")
 
@@ -113,7 +114,7 @@ class RTABMapEmbed:
             for window_id in window_ids:
                 window = self.display.create_resource_object('window', window_id)
                 try:
-                    if "rviz" in str(window.get_wm_name()).lower():
+                    if "figure 1" in str(window.get_wm_name()).lower():
                         return window
                 except:
                     continue
@@ -207,7 +208,7 @@ class RTABMapEmbed:
 class FlightDataApp():
     def __init__(self):
         self.app = ctk.CTk()
-        self.app.title("Flight Data - (Team Matrix)")
+        self.app.title("Flight Manager - (Team Matrix)")
         logo_path = os.path.join(os.getcwd(), "assets", "images", "logo.png")
         if os.path.exists(logo_path):
             icon_image = tk.PhotoImage(file=logo_path)
@@ -326,8 +327,8 @@ class FlightDataApp():
         
         # Navigation heading
         self.navbar_heading = ctk.CTkLabel(
-            self.nav_bar, text="Flight Data", 
-            font=("Arial", 30, "bold"), text_color="#ffffff")
+            self.nav_bar, text="Flight Manager", 
+            font=("Arial", 29, "bold"), text_color="#ffffff")
         self.navbar_heading.grid(row=0, column=0, sticky="w", padx=30, pady=0)
         
         # Status box
@@ -521,17 +522,17 @@ class FlightDataApp():
         
         # Data labels
         self.x_label_safe = ctk.CTkLabel(
-            self.safe_site_data_frame, text="1 : 00", 
+            self.safe_site_data_frame, text="1 : X:0 Y:0 Z:0", 
             font=("Arial", 18, "bold"), text_color="#0048FF")
         self.x_label_safe.grid(row=0, column=0, padx=5, pady=5, sticky="w")
         
         self.y_label_safe = ctk.CTkLabel(
-            self.safe_site_data_frame, text="2 : 00", 
+            self.safe_site_data_frame, text="2 : X:0 Y:0 Z:0", 
             font=("Arial", 18, "bold"), text_color="#19FF00")
         self.y_label_safe.grid(row=1, column=0, padx=5, pady=5, sticky="w")
         
         self.z_label_safe = ctk.CTkLabel(
-            self.safe_site_data_frame, text="3 : 00", 
+            self.safe_site_data_frame, text="3 : X:0 Y:0 Z:0", 
             font=("Arial", 18, "bold"), text_color="#FF0000")
         self.z_label_safe.grid(row=2, column=0, padx=5, pady=5, sticky="w")
 
@@ -645,7 +646,7 @@ class FlightDataApp():
         
         # Camera Heading
         self.camera_heading = ctk.CTkLabel(
-        self.camera_section, text="Elevation Map View", 
+        self.camera_section, text="Safe Spot Identification", 
             font=("Arial", 24, "bold"), fg_color="transparent", text_color="#FFFFFF")
         self.camera_heading.grid(
         row=0, column=0, padx=20, pady=(0, 10), sticky="w")
@@ -655,7 +656,7 @@ class FlightDataApp():
             self.camera_section, 
             fg_color="#2B2828", 
             corner_radius=15,
-            height=450)  # Fixed height of 500 pixels
+            height=395)  # Fixed height of 500 pixels
         self.camera_box.grid(
             row=1, column=0, 
             sticky="nsew", 
@@ -670,7 +671,10 @@ class FlightDataApp():
 
     def on_autonomous_switch_changed(self):
         """Handle autonomous mode switch changes"""
-        mode = self.control_switch.get()
+        # Get the switch state and ensure it's a proper boolean
+        mode = bool(self.control_switch.get())
+        
+        # Set the mode through controller
         self.autonomous_controller.set_mode(mode)
         
         # Visual feedback
