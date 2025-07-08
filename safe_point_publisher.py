@@ -31,7 +31,7 @@ class SafePointPublisher(Node):
 
         # Predefined coordinate sets
         self.coordinate_sets = [
-           "X:-0.6 Y:5.4 Z:0",
+           "X:-0.68 Y:5.28 Z:0",
            "X:-3.8 Y:1.9 Z:0",
            "X:-3.5 Y:5.5 Z:0"
         ]

@@ -41,7 +41,7 @@ class SensorSubscriber(Node):
         self.vv = self.hv = self.hv_north = self.hv_east = 0.0
         self.altitude = self.height_above_home = 0.0
         self.rangefinder_height = 0.0  # New variable for rangefinder height
-        self.battery_percentage = 76
+        self.battery_percentage = 83
         self.last_battery_update = time.time()
         self.safe_x = self.safe_y = self.safe_z = ""
         self.rangefinder_available = False  # Track rangefinder status

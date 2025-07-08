@@ -114,7 +114,7 @@ class RTABMapEmbed:
             for window_id in window_ids:
                 window = self.display.create_resource_object('window', window_id)
                 try:
-                    if "figure 1" in str(window.get_wm_name()).lower():
+                    if "RTAB-Map* [ROS]".lower() in str(window.get_wm_name()).lower():
                         return window
                 except:
                     continue
@@ -646,7 +646,7 @@ class FlightDataApp():
         
         # Camera Heading
         self.camera_heading = ctk.CTkLabel(
-        self.camera_section, text="Safe Spot Identification", 
+        self.camera_section, text="Point Cloud Map", 
             font=("Arial", 24, "bold"), fg_color="transparent", text_color="#FFFFFF")
         self.camera_heading.grid(
         row=0, column=0, padx=20, pady=(0, 10), sticky="w")
@@ -656,7 +656,7 @@ class FlightDataApp():
             self.camera_section, 
             fg_color="#2B2828", 
             corner_radius=15,
-            height=395)  # Fixed height of 500 pixels
+            height=500)  # Fixed height of 500 pixels
         self.camera_box.grid(
             row=1, column=0, 
             sticky="nsew", 
