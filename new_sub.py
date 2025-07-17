@@ -24,7 +24,7 @@ class SensorSubscriber(Node):
         self.rangefinder_height = 0.0
         self.battery_percentage = 83
         self.last_battery_update = time.time()
-        self.safe_x = self.safe_y = self.safe_z = ""
+        self.safe_points = ["1 : X:00.00 Y:00.00", "2 : X:00.00 Y:00.00", "3 : X:00.00 Y:00.00"]  # Default safe points
         self.rangefinder_available = False
         self.last_rangefinder_time = 0.0 
         
@@ -36,7 +36,7 @@ class SensorSubscriber(Node):
         self.update_battery()
         self.connection_timer = self.create_timer(1.0, self.check_connection_status)
         self.battery_timer = self.create_timer(60.0, self.update_battery)
-        self.rangefinder_check_timer = self.create_timer(5.0, self.check_rangefinder_status)
+        self.rangefinder_check_timer = self.create_timer(0.5, self.check_rangefinder_status)
 
     def init_subscribers(self):
         self.mavros_qos = QoSProfile(depth=10)
@@ -46,16 +46,34 @@ class SensorSubscriber(Node):
         self.create_subscription(Imu, '/mavros/imu/data', self.imu_callback, self.mavros_qos)
         self.create_subscription(TwistStamped, '/mavros/local_position/velocity_local', 
                                 self.velocity_local_callback, self.mavros_qos)
-        self.create_subscription(Altitude, '/mavros/altitude', self.altitude_callback, self.mavros_qos)
-        self.create_subscription(PoseStamped, '/mavros/local_position/pose', 
-                                self.local_position_callback, self.mavros_qos)
+        # self.create_subscription(Altitude, '/mavros/altitude', self.altitude_callback, self.mavros_qos)
+        # self.create_subscription(PoseStamped, '/mavros/local_position/pose', 
+        #                         self.local_position_callback, self.mavros_qos)
         self.create_subscription(Range, '/mavros/rangefinder/rangefinder', 
                                 self.rangefinder_callback, self.mavros_qos)
-        self.create_subscription(String, '/x_coordinate', self.safe_point_callback_x, self.mavros_qos)
-        self.create_subscription(String, '/y_coordinate', self.safe_point_callback_z, self.mavros_qos)
-        self.create_subscription(String, '/z_coordinate', self.safe_point_callback_y, self.mavros_qos)
+        self.create_subscription(String, '/text_topic', self.text_topic_callback, self.mavros_qos)
 
         self.get_logger().info("All subscribers initialized.")
+
+    def text_topic_callback(self, msg):
+        """Callback for text topic containing safe points"""
+        self.update_last_message_time()
+        try:
+            # Split the message into lines and update safe points
+            lines = msg.data.split('\n')
+            for i, line in enumerate(lines[:3]):  # Only take first 3 lines if available
+                self.safe_points[i] = line.strip()
+            
+            # Update UI labels if they exist
+            if self.ui:
+                if hasattr(self.ui, 'label_13') and len(self.safe_points) > 0:  # Safe point 1
+                    self.ui.label_13.setText(self.safe_points[0])
+                if hasattr(self.ui, 'label_15') and len(self.safe_points) > 1:  # Safe point 2
+                    self.ui.label_15.setText(self.safe_points[1])
+                if hasattr(self.ui, 'label_16') and len(self.safe_points) > 2:  # Safe point 3
+                    self.ui.label_16.setText(self.safe_points[2])
+        except Exception as e:
+            self.get_logger().error(f"Error processing text topic: {str(e)}")
 
     def check_rangefinder_status(self):
         """Check if we're receiving rangefinder data"""
@@ -172,27 +190,6 @@ class SensorSubscriber(Node):
         self.altitude = msg.local
         self.update_height_display()
 
-    def safe_point_callback_x(self, msg):
-        """Callback for safe point X coordinate"""
-        self.update_last_message_time()
-        self.safe_x = msg.data
-        if self.ui and hasattr(self.ui, 'label_13'):
-            self.ui.label_13.setText(f"1 : X:{self.safe_x}  Y : {self.safe_y}")
-
-    def safe_point_callback_y(self, msg):
-        """Callback for safe point Y coordinate"""
-        self.update_last_message_time()
-        self.safe_z = msg.data
-        if self.ui and hasattr(self.ui, 'label_16'):
-            self.ui.label_16.setText(f"3 : X:{self.safe_x}  Y : {self.safe_z}")
-
-    def safe_point_callback_z(self, msg):
-        """Callback for safe point Z coordinate"""
-        self.update_last_message_time()
-        self.safe_y = msg.data
-        if self.ui and hasattr(self.ui, 'label_15'):
-            self.ui.label_15.setText(f"2 : X:{self.safe_x}  Y : {self.safe_y}")
-
     def check_connection_status(self):
         """Check if we're still receiving messages"""
         now = self.get_clock().now()
@@ -235,6 +232,13 @@ class SensorSubscriber(Node):
                 if hasattr(self.ui, 'widget_13'):
                     self.ui.widget_13.setStyleSheet("border-radius: 15px; border: none; background-color: #FF0000;")
                 
+                # Reset safe point displays
+                if hasattr(self.ui, 'label_13'):
+                    self.ui.label_13.setText("1 : X:00.00 Y:00.00")
+                if hasattr(self.ui, 'label_15'):
+                    self.ui.label_15.setText("2 : X:00.00 Y:00.00")
+                if hasattr(self.ui, 'label_16'):
+                    self.ui.label_16.setText("3 : X:00.00 Y:00.00")
                 
         except Exception as e:
             self.get_logger().error(f"UI error on connection lost: {str(e)}")
@@ -244,7 +248,7 @@ class SensorSubscriber(Node):
         if self.ui:
             # Update connection status indicator
             if hasattr(self.ui, 'widget_13'):
-                self.ui.widget_13.setStyleSheet("border-radius: 10px; border: none; background-color: #00FF3B;")
+                self.ui.widget_13.setStyleSheet("border-radius: 15px; border: none; background-color: #A4A4A5;")
         
 
 def main(args=None):

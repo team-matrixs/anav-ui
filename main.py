@@ -15,7 +15,22 @@ import os
 import Xlib.display
 from PIL import Image, ImageQt
 from PyQt5.QtCore import QTimer
+from std_msgs.msg import Bool
+import rclpy
+from rclpy.node import Node
 
+class AutonomousModePublisher:
+    def __init__(self, node):
+        self.node = node
+        self.publisher = self.node.create_publisher(Bool, 'autonomous_mode', 10)
+        
+    def publish_mode(self, mode):
+        msg = Bool()
+        msg.data = mode
+        self.publisher.publish(msg)
+        self.node.get_logger().info(f'Publishing autonomous mode: {mode}')
+        
+        
 class RTABMapEmbed:
     def __init__(self, parent_widget):
         self.parent = parent_widget
@@ -507,8 +522,7 @@ class Ui_MainWindow(object):
         self.toolButton = QtWidgets.QToolButton(self.widget_9)
         self.toolButton.setGeometry(QtCore.QRect(int(180 * self.scale_x), int(47 * self.scale_y), 
                                     int(26 * self.scale_x), int(30 * self.scale_y)))
-        self.toolButton.setStyleSheet("background-color: white;\n"
-                                    "")
+        self.toolButton.setStyleSheet("background-color: white;\n" "border-radius: 13px;")
         self.toolButton.setText("")
         icon = QtGui.QIcon()
         icon.addPixmap(QtGui.QPixmap("assets/images/power.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -616,6 +630,40 @@ class Ui_MainWindow(object):
         # Start RTAB-Map capture when UI is ready
         self.rtabmap_viewer.start_capture()
 
+        
+    def setup_button_connections(self, MainWindow, node):
+        # Initialize ROS publisher with the existing node
+        self.autonomous_publisher = AutonomousModePublisher(node)
+        
+        # Connect button click event
+        self.toolButton.clicked.connect(self.on_autonomous_button_clicked)
+    
+    def on_autonomous_button_clicked(self):
+        # Create warning dialog
+        msg_box = QtWidgets.QMessageBox()
+        msg_box.setIcon(QtWidgets.QMessageBox.Warning)
+        msg_box.setWindowTitle("Autonomous Mode Warning")
+        msg_box.setText("Are you sure you want to enable autonomous mode?")
+        msg_box.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        
+        # Show dialog and wait for response
+        response = msg_box.exec_()
+        
+        if response == QtWidgets.QMessageBox.Yes:
+            # Publish True to autonomous_mode topic
+            self.autonomous_publisher.publish_mode(True)
+            
+            # Update UI to show autonomous mode is active
+            self.label_18.setText("Autonomous")
+            self.toolButton.setStyleSheet("background-color: #5efc03;")
+        else:
+            # Publish False to autonomous_mode topic
+            self.autonomous_publisher.publish_mode(False)
+            
+            # Update UI to show manual mode
+            self.label_18.setText("Manual")
+            self.toolButton.setStyleSheet("background-color: white;")
+
     def retranslateUi(self, MainWindow):
         """Set all the text labels and window title."""
         _translate = QtCore.QCoreApplication.translate
@@ -623,52 +671,76 @@ class Ui_MainWindow(object):
         
         # Bottom panel labels
         self.label_2.setText(_translate("MainWindow", "Orientation"))
-        self.label_7.setText(_translate("MainWindow", "X : 20.25"))
-        self.label_8.setText(_translate("MainWindow", "Y : 20.25"))
-        self.label_9.setText(_translate("MainWindow", "Z : 20.25"))
+        self.label_7.setText(_translate("MainWindow", "X : 00.00"))
+        self.label_8.setText(_translate("MainWindow", "Y : 00.00"))
+        self.label_9.setText(_translate("MainWindow", "Z : 00.00"))
         self.label_3.setText(_translate("MainWindow", "Safety"))
         self.label_4.setText(_translate("MainWindow", "Battery  Low "))
         self.label_5.setText(_translate("MainWindow", "Lost  Link"))
         self.label_6.setText(_translate("MainWindow", "Velocity"))
-        self.label_10.setText(_translate("MainWindow", "X : 20.25"))
-        self.label_11.setText(_translate("MainWindow", "Y : 20.25"))
-        self.label_12.setText(_translate("MainWindow", "Z : 20.25"))
+        self.label_10.setText(_translate("MainWindow", "X : 00.00"))
+        self.label_11.setText(_translate("MainWindow", "Y : 00.00"))
+        self.label_12.setText(_translate("MainWindow", "Z : 00.00"))
         
         # Right panel labels
-        self.label_13.setText(_translate("MainWindow", "1 : X:20.56  Y : 25.36 "))
+        self.label_13.setText(_translate("MainWindow", "1 : X:00.00  Y:00.00"))
         self.label_14.setText(_translate("MainWindow", "Safe Co-ordinates"))
-        self.label_15.setText(_translate("MainWindow", "2 : X:20.56  Y : 25.36 "))
-        self.label_16.setText(_translate("MainWindow", "3 : X:20.56  Y : 25.36 "))
+        self.label_15.setText(_translate("MainWindow", "2 : X:00.00  Y:00.00"))
+        self.label_16.setText(_translate("MainWindow", "3 : X:00.00  Y:00.00"))
         self.label_17.setText(_translate("MainWindow", "Control Modes"))
         self.label_18.setText(_translate("MainWindow", "Autonomous"))
-        self.label_19.setText(_translate("MainWindow", "20.5"))
+        self.label_19.setText(_translate("MainWindow", "00.0"))
         self.label_20.setText(_translate("MainWindow", "Altitude"))
         self.label_21.setText(_translate("MainWindow", "80%"))
         self.label_22.setText(_translate("MainWindow", "Battery"))
+       
 
 
-# Example usage
 if __name__ == "__main__":
     import sys
     from threading import Thread
     import rclpy
-    
+    from std_msgs.msg import Bool
+    from new_sub import SensorSubscriber  # Your existing subscriber
+
+    # Initialize ROS
+    rclpy.init()
+    node = rclpy.create_node('anav_ui_node')
+
+    # Create Qt application
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
-    
-    # Start ROS2 node in a separate thread
-    def ros_thread():
-        rclpy.init()
-        subscriber = SensorSubscriber(ui)
-        rclpy.spin(subscriber)
-        subscriber.destroy_node()
-        rclpy.shutdown()
-    
-    thread = Thread(target=ros_thread)
-    thread.daemon = True
-    thread.start()
-    
+
+    # Initialize publisher and subscriber
+    ui.setup_button_connections(MainWindow, node)  # For autonomous mode
+    sensor_subscriber = SensorSubscriber(ui)  # Your existing subscriber
+
+    # ROS spin thread function
+    def ros_spin():
+        executor = rclpy.executors.MultiThreadedExecutor()
+        executor.add_node(node)
+        executor.add_node(sensor_subscriber)
+        
+        try:
+            executor.spin()
+        finally:
+            executor.shutdown()
+
+    # Start ROS thread
+    ros_thread = Thread(target=ros_spin)
+    ros_thread.daemon = True
+    ros_thread.start()
+
+    # Show main window
     MainWindow.show()
+
+    # Cleanup on exit
+    def shutdown():
+        node.destroy_node()
+        sensor_subscriber.destroy_node()
+        rclpy.shutdown()
+
+    app.aboutToQuit.connect(shutdown)
     sys.exit(app.exec_())
