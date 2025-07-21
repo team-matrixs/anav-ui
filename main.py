@@ -541,7 +541,7 @@ class Ui_MainWindow(object):
         
         # Altitude display
         self.label_19 = QtWidgets.QLabel(self.widget_10)
-        self.label_19.setGeometry(QtCore.QRect(int(28 * self.scale_x), int(40 * self.scale_y), 
+        self.label_19.setGeometry(QtCore.QRect(int(35 * self.scale_x), int(40 * self.scale_y), 
                                 int(81 * self.scale_x), int(51 * self.scale_y)))
         self.label_19.setStyleSheet("border: 0px;\n"
                                     "font-weight: 600;\n"
@@ -689,9 +689,9 @@ class Ui_MainWindow(object):
         self.label_16.setText(_translate("MainWindow", "3 : X:00.00  Y:00.00"))
         self.label_17.setText(_translate("MainWindow", "Control Modes"))
         self.label_18.setText(_translate("MainWindow", "Autonomous"))
-        self.label_19.setText(_translate("MainWindow", "00.0"))
+        self.label_19.setText(_translate("MainWindow", "0.0"))
         self.label_20.setText(_translate("MainWindow", "Altitude"))
-        self.label_21.setText(_translate("MainWindow", "80%"))
+        self.label_21.setText(_translate("MainWindow", "00%"))
         self.label_22.setText(_translate("MainWindow", "Battery"))
        
 

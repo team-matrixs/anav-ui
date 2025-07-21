@@ -22,8 +22,10 @@ class SensorSubscriber(Node):
         self.vv = self.hv = self.hv_north = self.hv_east = 0.0
         self.altitude = self.height_above_home = 0.0
         self.rangefinder_height = 0.0
-        self.battery_percentage = 83
-        self.last_battery_update = time.time()
+        self.battery_percentage = 0.0
+        self.battery_voltage = 0.0
+        self.battery_current = 0.0
+        self.battery_status = "Unknown"
         self.safe_points = ["1 : X:00.00 Y:00.00", "2 : X:00.00 Y:00.00", "3 : X:00.00 Y:00.00"]  # Default safe points
         self.rangefinder_available = False
         self.last_rangefinder_time = 0.0 
@@ -33,10 +35,8 @@ class SensorSubscriber(Node):
 
         # Initialize subscribers and timers
         self.init_subscribers()
-        self.update_battery()
         self.connection_timer = self.create_timer(1.0, self.check_connection_status)
-        self.battery_timer = self.create_timer(60.0, self.update_battery)
-        self.rangefinder_check_timer = self.create_timer(0.5, self.check_rangefinder_status)
+        # self.rangefinder_check_timer = self.create_timer(0.5, self.check_rangefinder_status)
 
     def init_subscribers(self):
         self.mavros_qos = QoSProfile(depth=10)
@@ -46,14 +46,32 @@ class SensorSubscriber(Node):
         self.create_subscription(Imu, '/mavros/imu/data', self.imu_callback, self.mavros_qos)
         self.create_subscription(TwistStamped, '/mavros/local_position/velocity_local', 
                                 self.velocity_local_callback, self.mavros_qos)
-        # self.create_subscription(Altitude, '/mavros/altitude', self.altitude_callback, self.mavros_qos)
-        # self.create_subscription(PoseStamped, '/mavros/local_position/pose', 
-        #                         self.local_position_callback, self.mavros_qos)
-        self.create_subscription(Range, '/mavros/rangefinder/rangefinder', 
-                                self.rangefinder_callback, self.mavros_qos)
+        self.create_subscription(BatteryState, '/mavros/battery', 
+                                self.battery_callback, self.mavros_qos)
+        # self.create_subscription(Range, '/mavros/rangefinder/rangefinder', 
+        #                         self.rangefinder_callback, self.mavros_qos)
         self.create_subscription(String, '/text_topic', self.text_topic_callback, self.mavros_qos)
 
         self.get_logger().info("All subscribers initialized.")
+
+    def battery_callback(self, msg):
+        """Callback for battery data"""
+        self.update_last_message_time()
+        self.battery_percentage = msg.percentage * 100  # Convert from 0-1 to percentage
+        self.battery_voltage = msg.voltage
+        self.battery_current = msg.current
+        
+        # Map power supply status to human-readable string
+        status_map = {
+            0: "Unknown",
+            1: "Charging",
+            2: "Discharging",
+            3: "Not Charging",
+            4: "Full"
+        }
+        self.battery_status = status_map.get(msg.power_supply_status, "Unknown")
+        
+        self.update_battery_display()
 
     def text_topic_callback(self, msg):
         """Callback for text topic containing safe points"""
@@ -97,17 +115,11 @@ class SensorSubscriber(Node):
     def update_height_display(self):
         """Update height display with rangefinder data if available"""
         if self.ui and hasattr(self.ui, 'label_19'):  # Altitude label
-            if self.rangefinder_available:
-                text = f"{self.rangefinder_height:.1f}"
-            else:
-                text = "N/A"
+            # if self.rangefinder_available:
+            text = f"{abs(self.vv):.1f}"
+            # else:
+                # text = "N/A"
             self.ui.label_19.setText(text)
-
-    def update_battery(self):
-        """Decrease battery percentage by 1% each minute"""
-        if self.battery_percentage > 0:
-            self.battery_percentage -= 2.0
-            self.update_battery_display()
 
     def update_battery_display(self):
         """Update battery display based on current percentage"""
@@ -126,7 +138,7 @@ class SensorSubscriber(Node):
             # Update UI elements if they exist
             if self.ui:
                 if hasattr(self.ui, 'label_21'):  # Battery percentage
-                    self.ui.label_21.setText(f"{self.battery_percentage:.0f}%")
+                    self.ui.label_21.setText(f"{abs(self.battery_percentage):.1f}%")
                 
                 # Update status indicator dots
                 if hasattr(self.ui, 'widget_12'):
@@ -177,17 +189,12 @@ class SensorSubscriber(Node):
                 self.ui.label_11.setText(f"Y : {self.hv_east:.2f}")
             if hasattr(self.ui, 'label_12'):  # Z velocity
                 self.ui.label_12.setText(f"Z : {self.vv:.2f}")
+            self.update_height_display()
 
     def local_position_callback(self, msg):
         """Callback for local position data"""
         self.update_last_message_time()
         self.height_above_home = msg.pose.position.z
-        self.update_height_display()
-
-    def altitude_callback(self, msg):
-        """Callback for altitude data"""
-        self.update_last_message_time()
-        self.altitude = msg.local
         self.update_height_display()
 
     def check_connection_status(self):
