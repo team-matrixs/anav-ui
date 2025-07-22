@@ -142,7 +142,7 @@ class SensorSubscriber(Node):
                 
                 # Update status indicator dots
                 if hasattr(self.ui, 'widget_12'):
-                    self.ui.widget_12.setStyleSheet(f"border-radius: 15px; border: none; background-color: {health_color};")
+                    self.ui.widget_12.setStyleSheet(f"border-radius: 12px; border: none; background-color: {health_color};")
             
         except Exception as e:
             self.get_logger().error(f"Error updating battery display: {str(e)}")
@@ -237,7 +237,7 @@ class SensorSubscriber(Node):
                 
                 # Update connection status indicator
                 if hasattr(self.ui, 'widget_13'):
-                    self.ui.widget_13.setStyleSheet("border-radius: 15px; border: none; background-color: #FF0000;")
+                    self.ui.widget_13.setStyleSheet("border-radius: 12px; border: none; background-color: #FF0000;")
                 
                 # Reset safe point displays
                 if hasattr(self.ui, 'label_13'):
@@ -255,7 +255,7 @@ class SensorSubscriber(Node):
         if self.ui:
             # Update connection status indicator
             if hasattr(self.ui, 'widget_13'):
-                self.ui.widget_13.setStyleSheet("border-radius: 15px; border: none; background-color: #A4A4A5;")
+                self.ui.widget_13.setStyleSheet("border-radius: 12px; border: none; background-color: #A4A4A5;")
         
 
 def main(args=None):

@@ -248,7 +248,7 @@ class Ui_MainWindow(object):
         bottom_panel_height = int(251 * self.scale_y)
         bottom_panel_width = int(770 * self.scale_x)
         bottom_panel_x = int(20 * self.scale_x)
-        bottom_panel_y = screen_height - bottom_panel_height - int(20 * self.scale_y)
+        bottom_panel_y = screen_height - bottom_panel_height - int(50 * self.scale_y)
         
         self.widget_2 = QtWidgets.QWidget(self.widget)
         self.widget_2.setGeometry(QtCore.QRect(bottom_panel_x, bottom_panel_y, bottom_panel_width, bottom_panel_height))
@@ -351,7 +351,7 @@ class Ui_MainWindow(object):
         self.widget_12 = QtWidgets.QWidget(self.widget_6)
         self.widget_12.setGeometry(QtCore.QRect(int(270 * self.scale_x), int(47 * self.scale_y), 
                                             int(18 * self.scale_x), int(21 * self.scale_y)))
-        self.widget_12.setStyleSheet("border-radius: 15px;\n"
+        self.widget_12.setStyleSheet("border-radius: 12px;\n"
                                     "border: none;\n"
                                     "background-color: #A4A4A5;")
         self.widget_12.setObjectName("widget_12")
@@ -359,7 +359,7 @@ class Ui_MainWindow(object):
         self.widget_13 = QtWidgets.QWidget(self.widget_6)
         self.widget_13.setGeometry(QtCore.QRect(int(270 * self.scale_x), int(85 * self.scale_y), 
                                             int(18 * self.scale_x), int(21 * self.scale_y)))
-        self.widget_13.setStyleSheet("border-radius: 15px;\n"
+        self.widget_13.setStyleSheet("border-radius: 12px;\n"
                                     "border: none;\n"
                                     "background-color: #A4A4A5;")
         self.widget_13.setObjectName("widget_13")
@@ -604,7 +604,7 @@ class Ui_MainWindow(object):
         # ==============================================
         # Main content area - responsive positioning and sizing
         main_content_width = screen_width - right_panel_width - int(62 * self.scale_x)
-        main_content_height = screen_height - bottom_panel_height - int(50 * self.scale_y)
+        main_content_height = screen_height - bottom_panel_height - int(80 * self.scale_y)
         
         self.widget_4 = QtWidgets.QWidget(self.widget)
         self.widget_4.setGeometry(QtCore.QRect(int(20 * self.scale_x), int(10 * self.scale_y), 
