@@ -36,7 +36,7 @@ class SensorSubscriber(Node):
         # Initialize subscribers and timers
         self.init_subscribers()
         self.connection_timer = self.create_timer(1.0, self.check_connection_status)
-        # self.rangefinder_check_timer = self.create_timer(0.5, self.check_rangefinder_status)
+        self.rangefinder_check_timer = self.create_timer(0.5, self.check_rangefinder_status)
 
     def init_subscribers(self):
         self.mavros_qos = QoSProfile(depth=10)
@@ -121,7 +121,7 @@ class SensorSubscriber(Node):
                 text = "N/A"
             self.ui.label_19.setText(text)
 
-            
+
     def update_battery_display(self):
         """Update battery display based on current percentage"""
         try:
@@ -247,6 +247,9 @@ class SensorSubscriber(Node):
                     self.ui.label_15.setText("2 : X:00.00 Y:00.00")
                 if hasattr(self.ui, 'label_16'):
                     self.ui.label_16.setText("3 : X:00.00 Y:00.00")
+
+                if hasattr(self.ui, 'label_19'):
+                    self.ui.label_19.setText("0.0")
                 
         except Exception as e:
             self.get_logger().error(f"UI error on connection lost: {str(e)}")
