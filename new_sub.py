@@ -35,7 +35,7 @@ class SensorSubscriber(Node):
 
         # Initialize subscribers and timers
         self.init_subscribers()
-        self.connection_timer = self.create_timer(1.0, self.check_connection_status)
+        self.connection_timer = self.create_timer(0.5, self.check_connection_status)
         self.rangefinder_check_timer = self.create_timer(0.5, self.check_rangefinder_status)
 
     def init_subscribers(self):
@@ -240,6 +240,9 @@ class SensorSubscriber(Node):
                 if hasattr(self.ui, 'widget_13'):
                     self.ui.widget_13.setStyleSheet("border-radius: 12px; border: none; background-color: #FF0000;")
                 
+                if(self.ui, 'widget_12'):
+                     self.ui.widget_12.setStyleSheet("border-radius: 12px; border: none; background-color: #A4A4A5;")
+
                 # Reset safe point displays
                 if hasattr(self.ui, 'label_13'):
                     self.ui.label_13.setText("1 : X:00.00 Y:00.00")
@@ -250,6 +253,11 @@ class SensorSubscriber(Node):
 
                 if hasattr(self.ui, 'label_19'):
                     self.ui.label_19.setText("0.0")
+
+                if hasattr(self.ui, 'label_21'):
+                    self.ui.label_21.setText("0.0%")
+
+                
                 
         except Exception as e:
             self.get_logger().error(f"UI error on connection lost: {str(e)}")

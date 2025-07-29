@@ -115,7 +115,7 @@ class RTABMapEmbed:
             for window_id in window_ids:
                 window = self.display.create_resource_object('window', window_id)
                 try:
-                    if "RViz".lower() in str(window.get_wm_name()).lower():
+                    if "RTAB-Map*".lower() in str(window.get_wm_name()).lower():
                         return window
                 except:
                     continue
