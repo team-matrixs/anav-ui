@@ -31,6 +31,7 @@ class AutonomousModePublisher:
         self.node.get_logger().info(f'Publishing autonomous mode: {mode}')
         
         
+        
 class RTABMapEmbed:
     def __init__(self, parent_widget):
         self.parent = parent_widget
@@ -39,6 +40,10 @@ class RTABMapEmbed:
         self.buffer_size = 2
         self.last_frame_time = 0
         self.frame_buffer = deque(maxlen=self.buffer_size)
+        self.window_check_interval = 1.0  # seconds
+        self.max_retries = 3
+        self.retry_count = 0
+        self.window_active = False  # Track if we have an active window
         
         # Create label for displaying RTAB-Map
         self.image_label = QtWidgets.QLabel(parent_widget)
@@ -64,23 +69,7 @@ class RTABMapEmbed:
     def start_capture(self):
         if not self.running:
             self.running = True
-            
-            # Launch RTAB-Map with optimized environment
-            env = os.environ.copy()
-            env.update({
-                'DISPLAY': ':0',
-                'QT_QUICK_BACKEND': 'software',
-                'LIBGL_ALWAYS_SOFTWARE': '1',
-                'QT_AUTO_SCREEN_SCALE_FACTOR': '0'
-            })
-            
-            # For ROS 2, the launch command would be different
-            # self.rtabmap_process = subprocess.Popen(
-            #     ["ros2 launch depthai_ros_driver rtabmap.launch.py"],
-            #     env=env,
-            #     stdout=subprocess.PIPE,
-            #     stderr=subprocess.PIPE
-            # )
+            self.launch_rtabmap()
             
             # Initialize X display in a separate thread
             self.display_thread = threading.Thread(target=self.init_display)
@@ -95,13 +84,48 @@ class RTABMapEmbed:
             # Start display update timer
             self.timer.start(int(1000 / self.target_fps))
 
+    def launch_rtabmap(self):
+        """Launch RTAB-Map process with optimized environment"""
+        if self.rtabmap_process and self.rtabmap_process.poll() is None:
+            return  # Process is already running
+            
+        env = os.environ.copy()
+        env.update({
+            'DISPLAY': ':0',
+            'QT_QUICK_BACKEND': 'software',
+            'LIBGL_ALWAYS_SOFTWARE': '1',
+            'QT_AUTO_SCREEN_SCALE_FACTOR': '0'
+        })
+        
+        try:
+            self.rtabmap_process = subprocess.Popen(
+                ["ros2", "launch", "rtabmap_launch", "rtabmap.launch.py"],
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            self.retry_count = 0  # Reset retry counter on successful launch
+        except Exception as e:
+            print(f"Failed to launch RTAB-Map: {str(e)}")
+            if self.retry_count < self.max_retries:
+                self.retry_count += 1
+                time.sleep(2)
+                self.launch_rtabmap()
+            else:
+                print("Max retries reached for RTAB-Map launch")
+                self.running = False
+
     def init_display(self):
         """Initialize X display connection"""
-        self.display = Xlib.display.Display()
-        time.sleep(1)  # Allow window to appear
+        try:
+            self.display = Xlib.display.Display()
+            time.sleep(1)  # Allow window to appear
+        except Exception as e:
+            print(f"Failed to initialize X display: {str(e)}")
+            self.running = False
 
     def find_rtabmap_window(self):
-        """Find RTAB-Map window with minimal X calls"""
+        """Find RTAB-Map or RViz window with minimal X calls"""
         if not self.display:
             return None
             
@@ -115,32 +139,47 @@ class RTABMapEmbed:
             for window_id in window_ids:
                 window = self.display.create_resource_object('window', window_id)
                 try:
-                    if "RTAB-Map*".lower() in str(window.get_wm_name()).lower():
+                    name = str(window.get_wm_name()).lower()
+                    if "rtab-map" in name or "rtabmap" in name or "rviz" in name:
                         return window
                 except:
                     continue
-        except:
-            pass
+        except Exception as e:
+            print(f"Window search error: {str(e)}")
         return None
 
     def capture_loop(self):
         """Main capture loop for RTAB-Map window"""
         while self.running:
             try:
+                # Check if RTAB-Map process is still running
+                if self.rtabmap_process and self.rtabmap_process.poll() is not None:
+                    print("RTAB-Map process terminated, restarting...")
+                    self.launch_rtabmap()
+                    time.sleep(2)  # Give time for restart
+                    continue
+                
                 # Find window periodically
                 current_time = time.time()
-                if not self.rtabmap_window or (current_time - self.last_window_check) > 1.0:
+                if not self.rtabmap_window or (current_time - self.last_window_check) > self.window_check_interval:
+                    previous_window = self.rtabmap_window
                     self.rtabmap_window = self.find_rtabmap_window()
                     self.last_window_check = current_time
+                    
+                    # Update window active status
                     if not self.rtabmap_window:
+                        self.window_active = False
                         time.sleep(0.1)
                         continue
+                    else:
+                        self.window_active = True
                 
                 # Get window geometry
                 try:
                     geometry = self.rtabmap_window.get_geometry()
                 except:
                     self.rtabmap_window = None
+                    self.window_active = False
                     continue
                 
                 # Control frame rate
@@ -151,52 +190,68 @@ class RTABMapEmbed:
                     continue
                 
                 # Capture window
-                raw = self.rtabmap_window.get_image(
-                    0, 0, geometry.width, geometry.height,
-                    Xlib.X.ZPixmap, 0xffffffff
-                )
-                
-                # Convert to numpy array
-                frame = np.frombuffer(raw.data, dtype=np.uint8)
-                frame = frame.reshape((geometry.height, geometry.width, 4))
-                
-                # Convert BGRA to BGR and resize
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
-                if self.capture_scale != 1.0:
-                    frame = cv2.resize(frame, 
-                                     (int(geometry.width * self.capture_scale),
-                                      int(geometry.height * self.capture_scale)),
-                                     interpolation=cv2.INTER_LINEAR)
-                
-                # Add to frame buffer
-                self.frame_buffer.append(frame)
-                
-                self.last_frame_time = current_time
+                try:
+                    raw = self.rtabmap_window.get_image(
+                        0, 0, geometry.width, geometry.height,
+                        Xlib.X.ZPixmap, 0xffffffff
+                    )
+                    
+                    # Convert to numpy array
+                    frame = np.frombuffer(raw.data, dtype=np.uint8)
+                    frame = frame.reshape((geometry.height, geometry.width, 4))
+                    
+                    # Convert BGRA to BGR and resize
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+                    if self.capture_scale != 1.0:
+                        frame = cv2.resize(frame, 
+                                         (int(geometry.width * self.capture_scale),
+                                          int(geometry.height * self.capture_scale)),
+                                         interpolation=cv2.INTER_LINEAR)
+                    
+                    # Add to frame buffer
+                    self.frame_buffer.append(frame)
+                    
+                    self.last_frame_time = current_time
+                except:
+                    self.rtabmap_window = None
+                    self.window_active = False
+                    continue
                 
             except Exception as e:
                 print(f"RTAB-Map capture error: {str(e)}")
+                self.window_active = False
                 time.sleep(0.1)
 
     def update_display(self):
-        """Update the display with the latest frame"""
-        if self.frame_buffer:
+        """Update the display with the latest frame or show blank if no window"""
+        if not self.window_active or not self.frame_buffer:
+            # Show blank black screen
+            blank_pixmap = QtGui.QPixmap(self.image_label.size())
+            blank_pixmap.fill(QtGui.QColor(0, 0, 0))
+            self.image_label.setPixmap(blank_pixmap)
+            return
+            
+        try:
             frame = self.frame_buffer[-1]
             
-            try:
-                # Convert numpy array to QImage
-                height, width, channel = frame.shape
-                bytes_per_line = 3 * width
-                q_img = QtGui.QImage(frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888).rgbSwapped()
-                
-                # Convert to QPixmap and display
-                pixmap = QtGui.QPixmap.fromImage(q_img)
-                self.image_label.setPixmap(pixmap.scaled(
-                    self.image_label.size(), 
-                    QtCore.Qt.KeepAspectRatio,
-                    QtCore.Qt.SmoothTransformation
-                ))
-            except Exception as e:
-                print(f"RTAB-Map display error: {str(e)}")
+            # Convert numpy array to QImage
+            height, width, channel = frame.shape
+            bytes_per_line = 3 * width
+            q_img = QtGui.QImage(frame.data, width, height, bytes_per_line, QtGui.QImage.Format_RGB888).rgbSwapped()
+            
+            # Convert to QPixmap and display
+            pixmap = QtGui.QPixmap.fromImage(q_img)
+            self.image_label.setPixmap(pixmap.scaled(
+                self.image_label.size(), 
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation
+            ))
+        except Exception as e:
+            print(f"RTAB-Map display error: {str(e)}")
+            # Show blank screen on error
+            blank_pixmap = QtGui.QPixmap(self.image_label.size())
+            blank_pixmap.fill(QtGui.QColor(0, 0, 0))
+            self.image_label.setPixmap(blank_pixmap)
 
     def stop_capture(self):
         """Stop the RTAB-Map capture"""
@@ -211,7 +266,7 @@ class RTABMapEmbed:
                     self.rtabmap_process.kill()
             if self.display:
                 self.display.close()
-
+                
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         """Initialize and set up the main window UI components."""
@@ -696,7 +751,62 @@ class Ui_MainWindow(object):
        
 
 
+
 if __name__ == "__main__":
+    import sys
+    from threading import Thread
+    import rclpy
+    from std_msgs.msg import Bool
+    from new_sub import SensorSubscriber  # Your existing subscriber
+
+    # Initialize ROS
+    rclpy.init()
+    node = rclpy.create_node('anav_ui_node')
+
+    # Create Qt application
+    app = QtWidgets.QApplication(sys.argv)
+    MainWindow = QtWidgets.QMainWindow()
+    ui = Ui_MainWindow()
+    ui.setupUi(MainWindow)
+
+    # Initialize publisher and subscriber
+    ui.setup_button_connections(MainWindow, node)  # For autonomous mode
+    sensor_subscriber = SensorSubscriber(ui)  # Your existing subscriber
+
+    # ROS spin thread function
+    def ros_spin():
+        executor = rclpy.executors.MultiThreadedExecutor()
+        executor.add_node(node)
+        executor.add_node(sensor_subscriber)
+        
+        try:
+            executor.spin()
+        finally:
+            executor.shutdown()
+            node.destroy_node()
+            sensor_subscriber.destroy_node()
+
+    # Start ROS thread
+    ros_thread = Thread(target=ros_spin)
+    ros_thread.daemon = True
+    ros_thread.start()
+
+    # Show main window
+    MainWindow.show()
+
+    # Cleanup on exit
+    def shutdown():
+        ui.rtabmap_viewer.stop_capture()
+        rclpy.shutdown()
+        ros_thread.join(timeout=1)
+
+    app.aboutToQuit.connect(shutdown)
+    
+    try:
+        sys.exit(app.exec_())
+    except KeyboardInterrupt:
+        shutdown()
+
     import sys
     from threading import Thread
     import rclpy
