@@ -497,7 +497,7 @@ class Ui_MainWindow(object):
         # Safe Coordinates Widget (in right panel)
         # --------------------------------------------------
         self.widget_8 = QtWidgets.QWidget(self.widget_3)
-        self.widget_8.setGeometry(QtCore.QRect(int(10 * self.scale_x), int(420 * self.scale_y), 
+        self.widget_8.setGeometry(QtCore.QRect(int(10 * self.scale_x), int(310 * self.scale_y), 
                                             int(251 * self.scale_x), int(291 * self.scale_y)))
         self.widget_8.setStyleSheet("background-color: #1D1D1D;\n"
                                     "border: 1px solid #B9B9B9;")
@@ -547,42 +547,42 @@ class Ui_MainWindow(object):
         # --------------------------------------------------
         # Control Modes Widget (in right panel)
         # --------------------------------------------------
-        self.widget_9 = QtWidgets.QWidget(self.widget_3)
-        self.widget_9.setGeometry(QtCore.QRect(int(10 * self.scale_x), int(310 * self.scale_y), 
-                                int(251 * self.scale_x), int(91 * self.scale_y)))
-        self.widget_9.setStyleSheet("background-color: #1D1D1D;\n"
-                                    "border: 1px solid #B9B9B9;")
-        self.widget_9.setObjectName("widget_9")
+        # self.widget_9 = QtWidgets.QWidget(self.widget_3)
+        # self.widget_9.setGeometry(QtCore.QRect(int(10 * self.scale_x), int(310 * self.scale_y), 
+        #                         int(251 * self.scale_x), int(91 * self.scale_y)))
+        # self.widget_9.setStyleSheet("background-color: #1D1D1D;\n"
+        #                             "border: 1px solid #B9B9B9;")
+        # self.widget_9.setObjectName("widget_9")
         
-        # Control mode labels and button
-        self.label_17 = QtWidgets.QLabel(self.widget_9)
-        self.label_17.setGeometry(QtCore.QRect(int(65 * self.scale_x), 0, int(181 * self.scale_x), int(41 * self.scale_y)))
-        self.label_17.setStyleSheet("border: 0px;\n"
-                                    "font-weight: bold;\n"
-                                    "color: #A4A4A5;\n"
-                                    f"font-size: {int(19 * min(self.scale_x, self.scale_y))}px;\n"
-                                    "background-color: transparent;")
-        self.label_17.setObjectName("label_17")
+        # # Control mode labels and button
+        # self.label_17 = QtWidgets.QLabel(self.widget_9)
+        # self.label_17.setGeometry(QtCore.QRect(int(65 * self.scale_x), 0, int(181 * self.scale_x), int(41 * self.scale_y)))
+        # self.label_17.setStyleSheet("border: 0px;\n"
+        #                             "font-weight: bold;\n"
+        #                             "color: #A4A4A5;\n"
+        #                             f"font-size: {int(19 * min(self.scale_x, self.scale_y))}px;\n"
+        #                             "background-color: transparent;")
+        # self.label_17.setObjectName("label_17")
         
-        self.label_18 = QtWidgets.QLabel(self.widget_9)
-        self.label_18.setGeometry(QtCore.QRect(int(40 * self.scale_x), int(40 * self.scale_y), 
-                                int(141 * self.scale_x), int(41 * self.scale_y)))
-        self.label_18.setStyleSheet("border: 0px;\n"
-                                    "font-weight: 550;\n"
-                                    "color: white;\n"
-                                    f"font-size: {int(20 * min(self.scale_x, self.scale_y))}px;\n"
-                                    "background-color: transparent;")
-        self.label_18.setObjectName("label_18")
+        # self.label_18 = QtWidgets.QLabel(self.widget_9)
+        # self.label_18.setGeometry(QtCore.QRect(int(40 * self.scale_x), int(40 * self.scale_y), 
+        #                         int(141 * self.scale_x), int(41 * self.scale_y)))
+        # self.label_18.setStyleSheet("border: 0px;\n"
+        #                             "font-weight: 550;\n"
+        #                             "color: white;\n"
+        #                             f"font-size: {int(20 * min(self.scale_x, self.scale_y))}px;\n"
+        #                             "background-color: transparent;")
+        # self.label_18.setObjectName("label_18")
         
-        self.toolButton = QtWidgets.QToolButton(self.widget_9)
-        self.toolButton.setGeometry(QtCore.QRect(int(180 * self.scale_x), int(47 * self.scale_y), 
-                                    int(26 * self.scale_x), int(30 * self.scale_y)))
-        self.toolButton.setStyleSheet("background-color: white;\n" "border-radius: 13px;")
-        self.toolButton.setText("")
-        icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("assets/images/power.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.toolButton.setIcon(icon)
-        self.toolButton.setObjectName("toolButton")
+        # self.toolButton = QtWidgets.QToolButton(self.widget_9)
+        # self.toolButton.setGeometry(QtCore.QRect(int(180 * self.scale_x), int(47 * self.scale_y), 
+        #                             int(26 * self.scale_x), int(30 * self.scale_y)))
+        # self.toolButton.setStyleSheet("background-color: white;\n" "border-radius: 13px;")
+        # self.toolButton.setText("")
+        # icon = QtGui.QIcon()
+        # icon.addPixmap(QtGui.QPixmap("assets/images/power.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        # self.toolButton.setIcon(icon)
+        # self.toolButton.setObjectName("toolButton")
         
         # --------------------------------------------------
         # Altitude Widget (in right panel)
@@ -691,7 +691,7 @@ class Ui_MainWindow(object):
         self.autonomous_publisher = AutonomousModePublisher(node)
         
         # Connect button click event
-        self.toolButton.clicked.connect(self.on_autonomous_button_clicked)
+        # self.toolButton.clicked.connect(self.on_autonomous_button_clicked)
     
     def on_autonomous_button_clicked(self):
         # Create warning dialog
@@ -709,15 +709,15 @@ class Ui_MainWindow(object):
             self.autonomous_publisher.publish_mode(True)
             
             # Update UI to show autonomous mode is active
-            self.label_18.setText("Autonomous")
-            self.toolButton.setStyleSheet("background-color: #5efc03;")
+            # self.label_18.setText("Autonomous")
+            # self.toolButton.setStyleSheet("background-color: #5efc03;")
         else:
             # Publish False to autonomous_mode topic
             self.autonomous_publisher.publish_mode(False)
             
             # Update UI to show manual mode
-            self.label_18.setText("Manual")
-            self.toolButton.setStyleSheet("background-color: white;")
+            # self.label_18.setText("Manual")
+            # self.toolButton.setStyleSheet("background-color: white;")
 
     def retranslateUi(self, MainWindow):
         """Set all the text labels and window title."""
@@ -742,8 +742,8 @@ class Ui_MainWindow(object):
         self.label_14.setText(_translate("MainWindow", "Safe Co-ordinates"))
         self.label_15.setText(_translate("MainWindow", "2 : X:00.00  Y:00.00"))
         self.label_16.setText(_translate("MainWindow", "3 : X:00.00  Y:00.00"))
-        self.label_17.setText(_translate("MainWindow", "Control Modes"))
-        self.label_18.setText(_translate("MainWindow", "Autonomous"))
+        # self.label_17.setText(_translate("MainWindow", "Control Modes"))
+        # self.label_18.setText(_translate("MainWindow", "Autonomous"))
         self.label_19.setText(_translate("MainWindow", "0.0"))
         self.label_20.setText(_translate("MainWindow", "Altitude"))
         self.label_21.setText(_translate("MainWindow", "00.0%"))
@@ -770,7 +770,7 @@ if __name__ == "__main__":
     ui.setupUi(MainWindow)
 
     # Initialize publisher and subscriber
-    ui.setup_button_connections(MainWindow, node)  # For autonomous mode
+    # ui.setup_button_connections(MainWindow, node)  # For autonomous mode
     sensor_subscriber = SensorSubscriber(ui)  # Your existing subscriber
 
     # ROS spin thread function
@@ -824,7 +824,7 @@ if __name__ == "__main__":
     ui.setupUi(MainWindow)
 
     # Initialize publisher and subscriber
-    ui.setup_button_connections(MainWindow, node)  # For autonomous mode
+    # ui.setup_button_connections(MainWindow, node)  # For autonomous mode
     sensor_subscriber = SensorSubscriber(ui)  # Your existing subscriber
 
     # ROS spin thread function
