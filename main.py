@@ -626,8 +626,8 @@ class Ui_MainWindow(object):
         
         # Battery display
         self.label_21 = QtWidgets.QLabel(self.widget_11)
-        self.label_21.setGeometry(QtCore.QRect(int(29 * self.scale_x), int(37 * self.scale_y), 
-                                            int(81 * self.scale_x), int(51 * self.scale_y)))
+        self.label_21.setGeometry(QtCore.QRect(int(18 * self.scale_x), int(37 * self.scale_y), 
+                                            int(90 * self.scale_x), int(51 * self.scale_y)))
         self.label_21.setStyleSheet("border: 0px;\n"
                                     "font-weight: 600;\n"
                                     "color: white;\n"
@@ -746,7 +746,7 @@ class Ui_MainWindow(object):
         self.label_18.setText(_translate("MainWindow", "Autonomous"))
         self.label_19.setText(_translate("MainWindow", "0.0"))
         self.label_20.setText(_translate("MainWindow", "Altitude"))
-        self.label_21.setText(_translate("MainWindow", "00%"))
+        self.label_21.setText(_translate("MainWindow", "00.0%"))
         self.label_22.setText(_translate("MainWindow", "Battery"))
        
 

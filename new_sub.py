@@ -57,9 +57,26 @@ class SensorSubscriber(Node):
     def battery_callback(self, msg):
         """Callback for battery data"""
         self.update_last_message_time()
-        self.battery_percentage = msg.percentage * 100  # Convert from 0-1 to percentage
+        
+        # Battery voltage characteristics (adjust these based on your battery specs)
+        MAX_VOLTAGE = 12.4  # Voltage when fully charged
+        MIN_VOLTAGE = 11.1  # Voltage when fully discharged
+
+        
+        # Get current voltage
         self.battery_voltage = msg.voltage
         self.battery_current = msg.current
+        
+        # Calculate percentage based on voltage (with clamping between 0-100)
+        if self.battery_voltage >= MAX_VOLTAGE:
+            voltage_percentage = 100.0
+        elif self.battery_voltage <= MIN_VOLTAGE:
+            voltage_percentage = 0.0
+        else:
+            voltage_percentage = ((self.battery_voltage - MIN_VOLTAGE) / 
+                                (MAX_VOLTAGE - MIN_VOLTAGE)) * 100.0
+
+        self.battery_percentage = voltage_percentage
         
         # Map power supply status to human-readable string
         status_map = {
@@ -72,7 +89,7 @@ class SensorSubscriber(Node):
         self.battery_status = status_map.get(msg.power_supply_status, "Unknown")
         
         self.update_battery_display()
-
+    
     def text_topic_callback(self, msg):
         """Callback for text topic containing safe points"""
         self.update_last_message_time()
@@ -255,7 +272,7 @@ class SensorSubscriber(Node):
                     self.ui.label_19.setText("0.0")
 
                 if hasattr(self.ui, 'label_21'):
-                    self.ui.label_21.setText("0.0%")
+                    self.ui.label_21.setText("00.0%")
 
                 
                 
