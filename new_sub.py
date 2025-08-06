@@ -37,6 +37,7 @@ class SensorSubscriber(Node):
         self.init_subscribers()
         self.connection_timer = self.create_timer(0.5, self.check_connection_status)
         self.rangefinder_check_timer = self.create_timer(0.5, self.check_rangefinder_status)
+        self.safe_points_received = False 
 
     def init_subscribers(self):
         self.mavros_qos = QoSProfile(depth=10)
@@ -91,6 +92,58 @@ class SensorSubscriber(Node):
         self.update_battery_display()
     
     def text_topic_callback(self, msg):
+        """Callback for text topic containing safe points"""
+        # Skip processing if we've already received all safe points
+        if self.safe_points_received:
+            return
+            
+        self.update_last_message_time()
+        try:
+            # Remove any whitespace and check if message is empty
+            cleaned_msg = msg.data.strip()
+            if not cleaned_msg:
+                return
+                
+            # Expected format: "N : X:XX.XX Y:YY.YY"
+            parts = cleaned_msg.split(':')
+            if len(parts) >= 3:
+                # Get point number (first part)
+                point_num = parts[0].strip()
+                
+                # Validate point number
+                if point_num in ['1', '2', '3']:
+                    idx = int(point_num) - 1  # Convert to 0-based index
+                    
+                    # Reconstruct the full point string
+                    point_str = f"{point_num} :{':'.join(parts[1:])}".strip()
+                    
+                    # Update the specific safe point
+                    self.safe_points[idx] = point_str
+                    
+                    # Update corresponding UI label if it exists
+                    if self.ui:
+                        label_map = {
+                            0: 'label_13',  # Point 1
+                            1: 'label_15',  # Point 2
+                            2: 'label_16'   # Point 3
+                        }
+                        label_name = label_map.get(idx)
+                        if label_name and hasattr(self.ui, label_name):
+                            getattr(self.ui, label_name).setText(point_str)
+                            
+                    # Check if all three points have been received (not default values)
+                    if all(not sp.endswith("00.00 Y:00.00") for sp in self.safe_points):
+                        self.safe_points_received = True
+                        self.get_logger().info("All three safe points received - stopping updates")
+                else:
+                    self.get_logger().warn(f"Invalid point number received: {point_num}")
+            else:
+                self.get_logger().warn(f"Malformed safe point message: {cleaned_msg}")
+                
+        except Exception as e:
+            self.get_logger().error(f"Error processing text topic: {str(e)}")
+
+
         """Callback for text topic containing safe points"""
         self.update_last_message_time()
         try:
@@ -284,12 +337,12 @@ class SensorSubscriber(Node):
                      self.ui.widget_12.setStyleSheet("border-radius: 12px; border: none; background-color: #A4A4A5;")
 
                 # Reset safe point displays
-                if hasattr(self.ui, 'label_13'):
-                    self.ui.label_13.setText("1 : X:00.00 Y:00.00")
-                if hasattr(self.ui, 'label_15'):
-                    self.ui.label_15.setText("2 : X:00.00 Y:00.00")
-                if hasattr(self.ui, 'label_16'):
-                    self.ui.label_16.setText("3 : X:00.00 Y:00.00")
+                # if hasattr(self.ui, 'label_13'):
+                #     self.ui.label_13.setText("1 : X:00.00 Y:00.00")
+                # if hasattr(self.ui, 'label_15'):
+                #     self.ui.label_15.setText("2 : X:00.00 Y:00.00")
+                # if hasattr(self.ui, 'label_16'):
+                #     self.ui.label_16.setText("3 : X:00.00 Y:00.00")
 
                 if hasattr(self.ui, 'label_19'):
                     self.ui.label_19.setText("0.0")
