@@ -94,22 +94,45 @@ class SensorSubscriber(Node):
         """Callback for text topic containing safe points"""
         self.update_last_message_time()
         try:
-            # Split the message into lines and update safe points
-            lines = msg.data.split('\n')
-            for i, line in enumerate(lines[:3]):  # Only take first 3 lines if available
-                self.safe_points[i] = line.strip()
-            
-            # Update UI labels if they exist
-            if self.ui:
-                if hasattr(self.ui, 'label_13') and len(self.safe_points) > 0:  # Safe point 1
-                    self.ui.label_13.setText(self.safe_points[0])
-                if hasattr(self.ui, 'label_15') and len(self.safe_points) > 1:  # Safe point 2
-                    self.ui.label_15.setText(self.safe_points[1])
-                if hasattr(self.ui, 'label_16') and len(self.safe_points) > 2:  # Safe point 3
-                    self.ui.label_16.setText(self.safe_points[2])
+            # Remove any whitespace and check if message is empty
+            cleaned_msg = msg.data.strip()
+            if not cleaned_msg:
+                return
+                
+            # Expected format: "N : X:XX.XX Y:YY.YY"
+            parts = cleaned_msg.split(':')
+            if len(parts) >= 3:
+                # Get point number (first part)
+                point_num = parts[0].strip()
+                
+                # Validate point number
+                if point_num in ['1', '2', '3']:
+                    idx = int(point_num) - 1  # Convert to 0-based index
+                    
+                    # Reconstruct the full point string
+                    point_str = f"{point_num} :{':'.join(parts[1:])}".strip()
+                    
+                    # Update the specific safe point
+                    self.safe_points[idx] = point_str
+                    
+                    # Update corresponding UI label if it exists
+                    if self.ui:
+                        label_map = {
+                            0: 'label_13',  # Point 1
+                            1: 'label_15',  # Point 2
+                            2: 'label_16'   # Point 3
+                        }
+                        label_name = label_map.get(idx)
+                        if label_name and hasattr(self.ui, label_name):
+                            getattr(self.ui, label_name).setText(point_str)
+                else:
+                    self.get_logger().warn(f"Invalid point number received: {point_num}")
+            else:
+                self.get_logger().warn(f"Malformed safe point message: {cleaned_msg}")
+                
         except Exception as e:
             self.get_logger().error(f"Error processing text topic: {str(e)}")
-
+        
     def check_rangefinder_status(self):
         """Check if we're receiving rangefinder data"""
         current_time = time.time()

@@ -69,7 +69,7 @@ class RTABMapEmbed:
     def start_capture(self):
         if not self.running:
             self.running = True
-            self.launch_rtabmap()
+            # self.launch_rtabmap()
             
             # Initialize X display in a separate thread
             self.display_thread = threading.Thread(target=self.init_display)
@@ -110,7 +110,7 @@ class RTABMapEmbed:
             if self.retry_count < self.max_retries:
                 self.retry_count += 1
                 time.sleep(2)
-                self.launch_rtabmap()
+                # self.launch_rtabmap()
             else:
                 print("Max retries reached for RTAB-Map launch")
                 self.running = False
@@ -140,7 +140,7 @@ class RTABMapEmbed:
                 window = self.display.create_resource_object('window', window_id)
                 try:
                     name = str(window.get_wm_name()).lower()
-                    if "rtab-map" in name or "rtabmap" in name or "rviz" in name:
+                    if "contours" in name or "rtab-map*" in name or "rtabmap" in name:
                         return window
                 except:
                     continue
@@ -153,11 +153,11 @@ class RTABMapEmbed:
         while self.running:
             try:
                 # Check if RTAB-Map process is still running
-                if self.rtabmap_process and self.rtabmap_process.poll() is not None:
-                    print("RTAB-Map process terminated, restarting...")
-                    self.launch_rtabmap()
-                    time.sleep(2)  # Give time for restart
-                    continue
+                # if self.rtabmap_process and self.rtabmap_process.poll() is not None:
+                #     print("RTAB-Map process terminated, restarting...")
+                #     self.launch_rtabmap()
+                #     time.sleep(2)  # Give time for restart
+                #     continue
                 
                 # Find window periodically
                 current_time = time.time()
